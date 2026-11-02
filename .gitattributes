@@ -1,0 +1,3 @@
+# .cmd 파일은 CRLF여야 cmd.exe가 goto · 라벨을 제대로 읽는다 (zip으로 받아도 그대로)
+*.cmd text eol=crlf
+* text=auto

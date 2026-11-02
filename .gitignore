@@ -1,0 +1,23 @@
+# 내 것 — 키 · 계정 · 언어 / yours — key, accounts, language
+.env
+my_accounts.txt
+data/lang.txt
+data/server.txt
+
+# 수집 데이터 · 내 기록 / collected data, your record
+data/*.db
+data/*/
+data/*.db-wal
+data/*.db-shm
+data/last_train.json
+data/benchmark.log
+data/benchmark.done
+
+# 다시 학습하며 생기는 것 / produced by retraining
+models/draft.prev.*
+models/*/
+
+.venv/
+__pycache__/
+*.pyc
+*.zip

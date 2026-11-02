@@ -1,0 +1,16 @@
+[project]
+name = "picknote"
+version = "0.1.0"
+description = "Ban/pick recommender for League of Legends KR Solo/Duo (Iron–Platinum), runs locally"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.0",
+    "requests>=2.31",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
+
+[tool.uv]
+package = false

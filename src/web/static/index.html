@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PickNote</title>
+<script src="/static/i18n.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#141a23; --panel2:#1b232f; --line:#2a3441;
+    --text:#e6edf3; --dim:#8b98a8; --faint:#5a6673;
+    --blue:#3b82f6; --blue-dim:#1e3a5f;
+    --red:#ef4444; --red-dim:#5f1e1e;
+    --gold:#c8aa6e; --good:#4ade80; --bad:#f87171;
+    --syn:#60a5fa; --ctr:#f472b6;          /* 추천 이유 막대: 아군 궁합 · 상대 상성 */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 "Pretendard","Malgun Gothic",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  select{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line);
+    border-radius:7px;padding:5px 8px;cursor:pointer}
+
+  /* ---------------------------------------------------------- 상단 */
+  header{display:flex;align-items:center;gap:14px;padding:11px 20px;
+    border-bottom:1px solid var(--line);background:var(--panel)}
+  h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+  /* 라인 버튼은 줄이지 않는다 — 좁아지면 글자가 세로로 깨진다. 좁아지는 건 모델 설명 쪽이다 */
+  .roles{display:flex;gap:4px;background:var(--panel2);padding:3px;border-radius:8px;flex:0 0 auto}
+  .roles button{padding:5px 12px;border-radius:6px;color:var(--dim);font-size:13px;white-space:nowrap}
+  .roles button[aria-pressed=true]{background:var(--gold);color:#0a0e14;font-weight:650}
+  .spacer{margin-left:auto}
+  .ghost{border:1px solid var(--line);border-radius:7px;padding:5px 11px;
+    color:var(--dim);font-size:13px;white-space:nowrap}
+  .ghost:hover{color:var(--text);border-color:var(--faint)}
+  .lcu{display:flex;align-items:center;gap:6px;color:var(--faint);font-size:12px;
+    white-space:nowrap}
+  .lcu i{width:7px;height:7px;border-radius:50%;background:var(--faint);display:block}
+  .lcu.on i{background:var(--good);box-shadow:0 0 6px var(--good)}
+  .lcu.idle i{background:var(--gold)}
+  .meta{color:var(--faint);font-size:11.5px;text-align:right;line-height:1.35;
+    max-width:200px}
+
+  /* ---------------------------------------------------------- 레이아웃 */
+  main{display:grid;grid-template-columns:1fr 390px;gap:16px;padding:16px;
+    max-width:1260px;margin:0 auto;align-items:start}
+  @media (max-width:1020px){main{grid-template-columns:1fr}}
+
+  .board{display:grid;grid-template-columns:1fr 62px 1fr;gap:6px 10px;align-items:center}
+  .board h2{font-size:12px;font-weight:600;letter-spacing:.06em;margin:0 0 2px;
+    text-transform:uppercase}
+  .board h2.ally{color:var(--blue)}
+  .board h2.enemy{color:var(--red);text-align:right}
+  .board .rolecol{text-align:center;color:var(--faint);font-size:11px;font-weight:600}
+
+  /* ---------------------------------------------------------- 슬롯 */
+  .slot{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;
+    background:var(--panel);border:1px solid var(--line);width:100%;text-align:left;
+    min-height:56px;cursor:pointer;transition:border-color .12s,background .12s}
+  .slot:hover{border-color:var(--faint)}
+  .slot.enemy{flex-direction:row-reverse;text-align:right}
+  .slot.ally.filled{border-color:var(--blue-dim);background:linear-gradient(90deg,#16233a,var(--panel))}
+  .slot.enemy.filled{border-color:var(--red-dim);background:linear-gradient(-90deg,#331a1a,var(--panel))}
+  .slot.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .slot.mine{border-style:dashed;border-color:var(--gold);background:#1d1a12;cursor:default}
+  /* 자리 바꾸기 — 끌어다 놓기 */
+  .slot[draggable=true]{cursor:grab}
+  .slot.dragging{opacity:.35}
+  .slot.dropover{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .slot .badges{display:flex;gap:4px;margin-top:1px}
+  .slot.enemy .badges{justify-content:flex-end}
+  .tag.guess{border-color:var(--line);color:var(--faint)}
+  .tag.unsure{border-color:#7a5212;color:#f59e0b}
+  .tag.fixed{border-color:#2d5a3a;color:var(--good)}
+  .slot .portrait{width:38px;height:38px;border-radius:8px;flex:0 0 38px;
+    background:var(--panel2);object-fit:cover}
+  .slot .label{min-width:0;flex:1}
+  .slot .cname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slot .hint{color:var(--faint);font-size:12px}
+  .slot .clear{color:var(--faint);font-size:16px;padding:0 4px;line-height:1}
+  .slot .clear:hover{color:var(--bad)}
+
+  /* ---------------------------------------------------------- 검색 */
+  .picker{margin-top:14px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:12px}
+  .picker input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .picker input:focus{border-color:var(--gold)}
+  .picker .who{font-size:12px;color:var(--dim);margin-bottom:8px;
+    display:flex;align-items:center;gap:10px}
+  .picker .who b{color:var(--gold)}
+  .picker .who .banmode{margin-left:auto;color:var(--faint);font-size:11.5px}
+  /* 포지션 필터 */
+  .posfilter{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;align-items:center}
+  .posfilter button{font-size:12px;padding:5px 9px;border-radius:7px;color:var(--dim);
+    border:1px solid var(--line);background:var(--bg);display:flex;gap:5px;align-items:center}
+  .posfilter button:hover{color:var(--text)}
+  .posfilter button[aria-pressed="true"]{border-color:var(--gold);color:var(--text);background:var(--panel2)}
+  .posfilter button i{font-style:normal;font-size:10.5px;color:var(--faint)}
+  .posfilter button[aria-pressed="true"] i{color:var(--gold)}
+  .posfilter .searching{font-size:11.5px;color:var(--faint);margin-left:auto}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));
+    gap:6px;margin-top:10px;max-height:224px;overflow-y:auto}
+  .grid button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;
+    border-radius:8px;font-size:10px;color:var(--dim)}
+  .grid button:hover,.grid button.cursor{background:var(--panel2);color:var(--text)}
+  .grid img{width:40px;height:40px;border-radius:7px;background:var(--panel2)}
+  .grid span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .grid .empty{grid-column:1/-1}
+
+  /* ---------------------------------------------------------- 밴 */
+  .bans{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}
+  .bans .lbl{color:var(--faint);font-size:11.5px;margin-right:2px}
+  .bans img{width:26px;height:26px;border-radius:6px;filter:grayscale(1) brightness(.6)}
+  .bans .banchip{position:relative;line-height:0}
+  .bans .banchip:hover::after{content:"×";position:absolute;inset:0;display:grid;
+    place-items:center;background:#000a;border-radius:6px;color:var(--bad);
+    font-size:14px;line-height:1}
+  .bans .add{color:var(--faint);border:1px dashed var(--line);border-radius:6px;
+    width:26px;height:26px;font-size:14px}
+  .bans .add[aria-pressed=true]{border-color:var(--bad);color:var(--bad)}
+
+  /* ---------------------------------------------------------- 추천 */
+  aside{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px;position:sticky;top:16px}
+  .group+.group{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .group h2{font-size:13px;margin:0;font-weight:650;display:flex;align-items:baseline;gap:8px}
+  .group h2 small{color:var(--faint);font-size:11px;font-weight:400;margin-left:auto}
+  .group .sub{color:var(--faint);font-size:11.5px;margin:2px 0 10px}
+  /* 오프포지션 숨기기 스위치 */
+  /* 아이언 티어 묻기 */
+  .irontier{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;
+    color:var(--dim);user-select:none;border:1px solid var(--line);border-radius:8px;
+    padding:5px 10px;white-space:nowrap}
+  .irontier:hover{color:var(--text)}
+  .irontier:has(input:checked){border-color:var(--gold);color:var(--gold);background:var(--panel2)}
+  .irontier input{accent-color:var(--gold);width:12px;height:12px;cursor:pointer}
+  .onlyhere{float:right;display:inline-flex;align-items:center;gap:4px;cursor:pointer;
+    color:var(--dim);user-select:none}
+  .onlyhere:hover{color:var(--text)}
+  .onlyhere input{accent-color:var(--gold);width:12px;height:12px;cursor:pointer}
+  .rec{display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-radius:9px}
+  .rec:hover{background:var(--panel2)}
+  .rec .rank{color:var(--faint);font-size:12px;width:12px;flex:0 0 12px;
+    text-align:right;padding-top:10px;font-variant-numeric:tabular-nums}
+  .rec img{width:36px;height:36px;border-radius:8px;flex:0 0 36px;background:var(--panel2)}
+  .rec .body{flex:1;min-width:0}
+  .rec .top{display:flex;align-items:baseline;gap:7px}
+  .rec .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rec .wr{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:650;
+    white-space:nowrap}
+  .rec .wr.up{color:var(--good)} .rec .wr.down{color:var(--bad)}
+  .rec .why{color:var(--dim);font-size:11.5px;margin-top:2px;line-height:1.45}
+  .rec .why em{font-style:normal;color:var(--faint)}
+  .tag{font-size:10px;border-radius:4px;padding:1px 5px;white-space:nowrap;
+    border:1px solid var(--line);color:var(--faint)}
+  .tag.mine{border-color:var(--gold);color:var(--gold)}
+  .tag.low{border-color:#6b4a1f;color:#c99a4a}
+  .tag.niche{border-color:#4b3a6b;color:#a78bda;cursor:help}
+  /* 내 기록 — 사실이지 예측이 아니다 */
+  .tag.rec{border-color:#2d4a5a;color:#7cc4e0;cursor:help}
+  .mylane{margin:-4px 0 10px;padding:7px 10px;border:1px solid #2d4a5a;border-radius:8px;
+          font-size:12.5px;color:#7cc4e0;line-height:1.5}
+  .mylane .head{color:var(--muted);font-size:11.5px;margin-bottom:3px}
+  .mylane .row{display:flex;justify-content:space-between;gap:10px}
+  .mylane .row b{color:var(--text);font-weight:600}
+  .mylane .row span:last-child{white-space:nowrap}
+  .mylane .row.thin{opacity:.55}
+  /* 추천 이유 — 막대 세 줄 */
+  .rbars{display:grid;grid-template-columns:30px 1fr 34px;gap:2px 6px;align-items:center;
+    margin-top:5px;font-size:10.5px}
+  .rbars .lab{color:var(--faint)}
+  .rbars .val{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+  .rtrack{position:relative;height:7px;background:#1f2733;border-radius:2px}
+  .rtrack::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)}
+  .rseg{position:absolute;top:0;height:100%;border-radius:2px}
+  .rseg.s{background:var(--gold)} .rseg.a{background:var(--syn)} .rseg.e{background:var(--ctr)}
+  .rlegend{display:flex;gap:10px;font-size:10.5px;color:var(--faint);margin:-4px 0 6px}
+  .rlegend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  .pos,.rbars .val.pos{color:var(--good)} .neg,.rbars .val.neg{color:var(--bad)}
+  /* 시간대별 승률 곡선 — 접어 두고, 누르면 그 줄만 열린다 */
+  .curvebtn{color:var(--faint);font-size:10.5px;background:none;border:0;padding:2px 0 0;
+    text-decoration:underline;text-underline-offset:3px}
+  .curvebtn:hover{color:var(--gold)}
+  .curve{margin-top:3px}
+  .curve{max-width:280px}                 /* 너무 넓으면 기울기가 납작해 보인다 */
+  .curve svg{display:block;width:100%;height:40px}
+  .curve .ends{display:flex;justify-content:space-between;color:var(--faint);font-size:10px;margin-top:1px}
+  .card .curve svg{height:34px}
+  .card .curvebtn{font-size:10px}
+  .why-split b{color:var(--text);font-weight:600}
+  /* 지금 고민 중 — 맞대결 카드 */
+  .cards{display:grid;gap:8px;margin-top:2px}
+  .cards[data-n="1"]{grid-template-columns:1fr}
+  .cards[data-n="2"]{grid-template-columns:repeat(2,1fr)}
+  .cards[data-n="3"]{grid-template-columns:repeat(3,1fr)}
+  .cards[data-n="4"]{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 6px 8px;text-align:center;position:relative}
+  .card.best{border-color:var(--good);background:#16241c}
+  .card img{width:38px;height:38px;border-radius:9px;background:var(--panel2)}
+  .card .nm{font-weight:600;font-size:12.5px;margin-top:5px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .card .wr{font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;
+    color:var(--dim)}
+  .card.best .wr{color:var(--good)}
+  .card .gap{font-size:10.5px;color:var(--faint);margin-top:1px}
+  .card .crown{position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    background:var(--good);color:#0a0e14;font-size:9.5px;font-weight:700;
+    border-radius:99px;padding:1px 8px;white-space:nowrap}
+  .card .drop{position:absolute;top:3px;right:5px;color:var(--faint);font-size:14px;
+    line-height:1;padding:2px 4px}
+  .card .drop:hover{color:var(--bad)}
+  .cards .add{border:1px dashed var(--line);border-radius:10px;color:var(--faint);
+    font-size:12px;min-height:96px;display:grid;place-items:center;line-height:1.5}
+  .cards .add:hover{border-color:var(--gold);color:var(--gold)}
+  .why-split{color:var(--dim);font-size:11.5px;margin:9px 0 0;text-align:center;
+    line-height:1.5}
+  .why-split em{font-style:normal;color:var(--good)}
+
+  .bar{height:3px;border-radius:2px;background:var(--panel2);margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--good)}
+  .empty{color:var(--faint);font-size:12.5px;padding:18px 8px;text-align:center;
+    line-height:1.7}
+  .empty button{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+  .foot{margin-top:14px;padding-top:11px;border-top:1px solid var(--line);
+    color:var(--faint);font-size:11px;line-height:1.6}
+  .foot .modelnote{color:var(--dim);margin-bottom:4px}
+  .foot .modelnote:empty{display:none}
+
+  /* ---------------------------------------------------------- 챔피언 풀 */
+  .overlay{position:fixed;inset:0;background:#000b;display:grid;place-items:center;
+    z-index:10;padding:20px}
+  .overlay[hidden]{display:none}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    width:min(680px,100%);max-height:86vh;display:flex;flex-direction:column;
+    padding:18px;gap:12px}
+  .modal .head{display:flex;align-items:baseline;gap:10px}
+  .modal h2{font-size:15px;margin:0}
+  .modal .head p{color:var(--faint);font-size:12px;margin:0}
+  .modal .head button{margin-left:auto;color:var(--faint);font-size:18px;line-height:1}
+  .modal input{width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg);color:var(--text);font:inherit;outline:none}
+  .modal input:focus{border-color:var(--gold)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-content:flex-start}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:999px;padding:3px 9px 3px 3px;font-size:12.5px}
+  .chip img{width:22px;height:22px;border-radius:50%}
+  .chip button{color:var(--faint);font-size:14px;line-height:1}
+  .chip button:hover{color:var(--bad)}
+  .chips .none{color:var(--faint);font-size:12.5px;padding:7px 2px}
+  /* 기록으로 풀 채우기 */
+  .poolfill{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--faint)}
+  .poolfill[hidden]{display:none}
+  .poolfill .ghost{color:var(--gold);border-color:#5a4a2a}
+  a.ghost{text-decoration:none}
+  /* 언어 전환 — i18n.js가 body 끝에 넣는다. 위쪽 머리줄을 가리지 않게 오른쪽 아래 */
+  #lang-toggle{position:fixed;right:12px;bottom:12px;z-index:20;
+    background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:3px 9px;color:var(--faint);font-size:11.5px;opacity:.8}
+  #lang-toggle:hover{color:var(--text);border-color:var(--faint);opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PickNote</h1>
+  <div class="roles" id="roles"></div>
+  <!-- 티어 보정. 아이언에만 차이값이 있어서 다섯 칸 드롭다운이
+       아니라 한 칸으로 묻는다. 모델에 보정이 없으면 서버가 ironOnly를 false로 주고 이 칸은 숨는다. -->
+  <label class="irontier" id="irontier" hidden
+         title="내 티어가 아이언이면 체크하세요 — 아이언 경기로 따로 배운 값에 맞춰 줍니다"
+         data-en-title="Check if you are in Iron — uses values learned separately from Iron games">
+    <input type="checkbox" id="iron"> <span data-en="Iron">아이언</span>
+  </label>
+  <div class="spacer"></div>
+  <button class="ghost" id="reset" title="새 판 시작" data-en-title="Start a new draft" data-en="Reset">초기화</button>
+  <button class="ghost" id="openpool" data-en="My champion pool">내 챔피언 풀</button>
+  <!-- 내 경기 기록이 있을 때만 보인다. 새 탭 — 밴픽판을 잃지 않게 -->
+  <a class="ghost" id="openme" href="/me" target="_blank" hidden data-en="My stats">내 기록</a>
+  <div class="lcu" id="lcu"><i></i><span data-en="Client not connected">클라이언트 연결 안 됨</span></div>
+  <div class="meta" id="meta" data-en="No data">데이터 없음</div>
+</header>
+
+<main>
+  <section>
+    <div class="board" id="board"></div>
+
+    <div class="picker">
+      <div class="who" id="who" data-en="Pick a slot, then search for a champion">슬롯을 고른 뒤 챔피언을 검색하세요</div>
+      <input id="q" placeholder="챔피언 이름 · 영문 · 초성 (예: 아리 / ahri / ㅇㄹ)" data-en-placeholder="Champion name (e.g. ahri)" autocomplete="off">
+      <div class="posfilter" id="posfilter" role="group" aria-label="포지션 필터" hidden></div>
+      <div class="grid" id="grid"></div>
+      <div class="bans" id="bans"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="group">
+      <h2><span data-en="Considering">지금 고민 중</span> <small id="candcount"></small></h2>
+      <div class="sub" id="candsub" data-en="Click your slot to add candidates">내 자리를 눌러 후보를 넣으세요</div>
+      <div class="mylane" id="mylane" hidden></div>
+      <div id="cands"></div>
+      <div class="why-split" id="whysplit"></div>
+    </div>
+    <div class="group">
+      <h2><span data-en="Other options">다른 선택지</span> <small id="othercount"></small></h2>
+      <div class="sub"><span data-en="Your pool plus the top picks in the data">내 풀과 데이터 상위를 합쳐서</span>
+        <label class="onlyhere" title="그 챔피언 경기의 1/4 이상이 이 자리일 때만 보여줍니다 — 브랜드 원딜 같은 오프포지션을 뺍니다"
+               data-en-title="Only shows champions with at least 1/4 of their games in this role — hides off-role picks like Brand Bot">
+          <input type="checkbox" id="onlyhere" checked> <span data-en="This role only">이 자리 픽만</span>
+        </label>
+      </div>
+      <div id="others"></div>
+    </div>
+    <div class="foot" id="foot">
+      <div class="modelnote" id="modelnote"></div>
+      <span data-en-html="Win rates assume <b>equal skill</b>.
+      From Iron to Platinum, mastery matters more than champion choice —
+      picks tagged <span class=&quot;tag mine&quot;>My pool</span> are usually the safer bet.">승률은 <b>같은 실력이라고 가정한</b> 값입니다.
+      아이언~플래티넘에서는 숙련도가 챔피언 선택보다 큽니다 —
+      <span class="tag mine">내 풀</span> 표시가 있는 쪽이 대체로 안전합니다.</span>
+    </div>
+  </aside>
+</main>
+
+<!-- ------------------------------------------------------------ 챔피언 풀 -->
+<div class="overlay" id="poolmodal" hidden>
+  <div class="modal">
+    <div class="head">
+      <h2 data-en="My champion pool">내 챔피언 풀</h2>
+      <p data-en="Register the champions you are confident on, per role">라인별로 자신 있는 챔피언을 등록해 두세요</p>
+      <button id="closepool" title="닫기" data-en-title="Close">×</button>
+    </div>
+    <div class="roles" id="poolroles" style="align-self:flex-start"></div>
+    <div class="chips" id="poolchips"></div>
+    <div class="poolfill" id="poolfill" hidden>
+      <button class="ghost" id="fillpool" data-en="Import from my stats">내 기록에서 가져오기</button>
+      <span id="poolfillnote"></span>
+    </div>
+    <input id="poolq" placeholder="추가할 챔피언 검색" data-en-placeholder="Search a champion to add" autocomplete="off">
+    <div class="grid" id="poolgrid" style="max-height:250px"></div>
+  </div>
+</div>
+
+<script>
+const ROLES = [
+  {key:"TOP",    ko:"탑",   en:"Top"},
+  {key:"JUNGLE", ko:"정글", en:"Jungle"},
+  {key:"MIDDLE", ko:"미드", en:"Mid"},
+  {key:"BOTTOM", ko:"원딜", en:"Bot"},
+  {key:"UTILITY",ko:"서폿", en:"Support"},
+];
+const roleName = r => L(r.ko, r.en);
+
+const state = {
+  myRole: "MIDDLE",
+  iron: false,           // 내 티어가 아이언인가. 기기에 기억한다
+  tier: "SILVER",        // 서버에 보낼 티어 — 아이언이면 "IRON", 아니면 보정 없는 티어
+  baseTier: "SILVER",
+  ally: {}, enemy: {}, bans: [],
+  candidates: [],        // 이번 판에 고민 중인 챔피언. 저장하지 않는다 (매판 바뀜)
+  myPick: 0,             // 클라이언트에서 내가 확정한 챔피언. 내 칸은 ally에 넣지 않는다
+  curveOpen: new Set(),  // 시간대 곡선을 펼쳐 둔 챔피언
+  curveLabels: [],
+  // 챔피언을 누르면 어디로 가나
+  toMine: true,          // 기본은 내 자리(고민 중). 다른 칸을 누르면 그때만 꺼진다
+  active: null,          // {team, role}  — 빌린 자리. toMine이 꺼져 있을 때만 쓴다
+  banMode: false,        // 밴을 찍는 중인가
+  // 챔피언 목록 포지션 필터
+  posFilter: "MIDDLE",   // 사람이 직접 고른 역할 key 또는 "ALL". posTouched일 때만 쓴다
+  posTouched: false,     // 사람이 직접 골랐나 — 목표가 바뀌면 풀린다
+  posGames: {},          // championId -> 포지션 5칸의 경기 수
+  posTotals: [0,0,0,0,0],
+  champions: {}, version: "",
+  cursor: 0, results: [],
+  hideOffRole: true,     // 오프포지션 픽 숨기기. 기기에 기억한다
+  pool: {},              // role -> [championId]
+  poolStored: false,     // 이 기기에 풀을 저장한 적이 있나 — 없을 때만 기록으로 저절로 채운다
+  mePool: {},            // role -> [championId] — 내 기록에서 그 자리 5판 이상
+  poolRole: "MIDDLE",
+  poolResults: [],
+  // 클라이언트 연동
+  lcu: {status: "offline", seq: 0},   // seq가 바뀌면 새 밴픽 → 판을 비운다
+  fixed: {ally: new Set(), enemy: new Set()},   // 손으로 지정한 칸 — 연동이 덮어쓰지 않는다
+  slotMeta: {ally: {}, enemy: {}},              // 연동이 채운 칸의 추정 정보
+};
+
+/* ------------------------------------------------------------------ 저장 */
+const IRON_KEY = "draft.iron.v1";
+const OFFROLE_KEY = "draft.hideOffRole.v1";
+const POOL_KEY = "draft.pool.v1";
+function loadPool(){
+  try{
+    const raw = localStorage.getItem(POOL_KEY);
+    state.poolStored = raw !== null;
+    state.pool = JSON.parse(raw) || {};
+  }catch{ state.pool = {}; }
+  for(const r of ROLES) state.pool[r.key] ??= [];
+}
+function savePool(){
+  try{ localStorage.setItem(POOL_KEY, JSON.stringify(state.pool)); }catch{}
+}
+function loadIron(){
+  try{ state.iron = localStorage.getItem(IRON_KEY) === "1"; }catch{}
+}
+function saveIron(){
+  try{ localStorage.setItem(IRON_KEY, state.iron ? "1" : "0"); }catch{}
+}
+function loadOffRole(){
+  try{ state.hideOffRole = localStorage.getItem(OFFROLE_KEY) !== "0"; }catch{}
+}
+function saveOffRole(){
+  try{ localStorage.setItem(OFFROLE_KEY, state.hideOffRole ? "1" : "0"); }catch{}
+}
+
+/* ------------------------------------------------------------------ 공용 */
+const CDN = () => `https://ddragon.leagueoflegends.com/cdn/${state.version}/img/champion/`;
+const portrait = id => {
+  const c = state.champions[id];
+  return c ? CDN() + c.image + ".png" : "";
+};
+const nameOf = id => state.champions[id] ? champName(state.champions[id]) : id;
+const roleKo = key => { const r = ROLES.find(r => r.key===key); return r ? roleName(r) : key; };
+// 가나다순 / 영어면 ABC순
+const byName = (a, b) => champName(a).localeCompare(champName(b), LANG);
+
+function taken(){
+  // 후보(candidates)는 아직 아무도 안 뽑은 상태라 여기서 빼지 않는다.
+  // 다만 후보 추가 모드에서는 이미 넣은 후보를 다시 못 넣게 한다.
+  const base = [...Object.values(state.ally), ...Object.values(state.enemy),
+                ...state.bans, state.myPick].filter(Boolean);
+  return new Set(state.toMine ? base.concat(state.candidates) : base);
+}
+
+/** 앞글자 일치를 먼저. "lee"에 니달리보다 리 신이 위로 와야 한 글자라도 덜 친다. */
+function search(query, exclude){
+  const raw = query.trim(), q = raw.toLowerCase();
+  let list = Object.entries(state.champions).filter(([id]) => !exclude.has(Number(id)));
+  // 개수를 자르지 않는다. 60개로 잘랐더니 빈 검색창에서 가나다순 '브랜드'까지만 나오고
+  // 뒤쪽 챔피언은 스크롤로 찾을 수 없었다. 173종이라 다 그려도 가볍다.
+  if(!raw) return list.sort((a,b)=>byName(a[1], b[1]));
+  // 영어 화면에서는 영어 이름만 본다 — 한글·초성은 한국어 화면에서만
+  const score = c => {
+    const n = LANG === "en" ? "" : c.name.toLowerCase(), e = (c.en || "").toLowerCase();
+    const ch = LANG === "en" ? "" : (c.chosung || "");
+    if((n && n.startsWith(q)) || e.startsWith(q) || (ch && ch.startsWith(raw))) return 0;
+    if((n && n.includes(q))   || e.includes(q)   || (ch && ch.includes(raw)))   return 1;
+    return 2;
+  };
+  return list.map(e => [e, score(e[1])]).filter(([,s]) => s<2)
+             .sort((a,b) => a[1]-b[1] || byName(a[0][1], b[0][1]))
+             .map(([e]) => e);
+}
+
+/* ------------------------------------------------------------------ 상단 */
+function renderHeader(){
+  document.getElementById("roles").innerHTML = ROLES.map(r =>
+    `<button data-role="${r.key}" aria-pressed="${r.key===state.myRole}">${roleName(r)}</button>`).join("");
+  // 풀 개수는 버튼에 붙인다. 추천 패널에는 자리가 없다.
+  const n = (state.pool[state.myRole]||[]).length;
+  document.getElementById("openpool").textContent =
+    n ? `${L("내 챔피언 풀", "My champion pool")} · ${roleKo(state.myRole)} ${n}` : L("내 챔피언 풀", "My champion pool");
+}
+
+/* ------------------------------------------------------------------ 밴픽판 */
+function slotHTML(team, role){
+  const isMine = team === "ally" && role === state.myRole;
+  // 내 칸은 추천을 받는 자리라 ally에 넣지 않는다. 확정한 픽이 있을 때만 보여 준다.
+  const id = isMine ? state.myPick : state[team][role];
+  const c = id ? state.champions[id] : null;
+  const a = state.active;
+  const active = !state.banMode && !state.toMine && a && a.team===team && a.role===role;
+  const cls = ["slot", team, c?"filled":"", isMine&&!c?"mine":"",
+               (active || (isMine && state.toMine))?"active":""].join(" ");
+  const img = c ? `<img class="portrait" src="${portrait(id)}" alt="">` : `<div class="portrait"></div>`;
+  const myHint = state.candidates.length
+    ? L(`내 자리 — 후보 ${state.candidates.length}개 고민 중`, `Your slot — considering ${state.candidates.length}`)
+    : L("내 자리 — 눌러서 고민 중인 챔피언 넣기", "Your slot — click to add champions you're considering");
+  const badge = isMine ? `<div class="badges"><span class="tag mine">${L("내 픽", "My pick")}</span></div>` : slotBadge(team, role);
+  const text = c ? `<div class="cname">${champName(c)}</div>${badge}`
+                 : `<div class="hint">${isMine ? myHint : L("비어 있음", "Empty")}</div>`;
+  // 채워진 칸만 끌 수 있다. 내 자리는 끌지도 놓지도 않는다.
+  const drag = c && !isMine ? `draggable="true"` : "";
+  // 내 픽은 클라이언트가 정한 것이라 지우기를 두지 않는다 — 지워도 1초 뒤 다시 채워진다
+  const clear = c && !isMine ? `<button class="clear" data-clear="${team}:${role}" title="${L("지우기", "Clear")}">×</button>` : "";
+  // 슬롯을 button으로 감싸면 안 된다 — 안에 지우기 button이 들어가는데,
+  // 버튼 중첩은 HTML이 허용하지 않아 브라우저가 바깥 버튼을 닫고 격자가 밀린다.
+  return `<div class="${cls}" role="button" tabindex="0" data-slot="${team}:${role}" ${drag}>
+      ${img}<div class="label">${text}</div>${clear}</div>`;
+}
+
+/** 칸 아래 표시. 연동으로 채운 칸만 추정 여부를 보여준다 — 손으로만 쓸 때는 아무것도 안 붙는다. */
+function slotBadge(team, role){
+  if(state.fixed[team].has(role) && state.lcu.seq > 0)
+    return `<div class="badges"><span class="tag fixed">${L("직접 지정", "Set manually")}</span></div>`;
+  const m = state.slotMeta[team][role];
+  if(!m || !m.inferred) return "";
+  const pct = Math.round(m.confidence * 100);
+  return m.uncertain
+    ? `<div class="badges"><span class="tag unsure" title="${L("다른 자리일 수도 있습니다 — 끌어서 바꾸세요", "Might be another role — drag to swap")}">${L("확실치 않음", "Unsure")} ${pct}%</span></div>`
+    : `<div class="badges"><span class="tag guess">${L("추정", "Guess")} ${pct}%</span></div>`;
+}
+
+function renderBoard(){
+  const rows = [`<h2 class="ally">${L("아군", "Allies")}</h2><div></div><h2 class="enemy">${L("상대", "Enemies")}</h2>`];
+  for(const r of ROLES){
+    rows.push(slotHTML("ally", r.key));
+    rows.push(`<div class="rolecol">${roleName(r)}</div>`);
+    rows.push(slotHTML("enemy", r.key));
+  }
+  document.getElementById("board").innerHTML = rows.join("");
+
+  document.getElementById("bans").innerHTML =
+    `<span class="lbl">${L("밴", "Bans")}</span>` +
+    state.bans.map(id =>
+      `<button class="banchip" data-unban="${id}" title="${L(`${nameOf(id)} 밴 해제`, `Unban ${nameOf(id)}`)}">
+         <img src="${portrait(id)}" alt="${nameOf(id)}"></button>`).join("") +
+    `<button class="add" id="banadd" aria-pressed="${state.banMode}"
+       title="${L("밴 추가", "Add ban")}">+</button>`;
+}
+
+/* ------------------------------------------------------------------ 검색창 */
+/**
+ * 포지션 필터 — 그 자리 경기의 0.5% 이상 나온 챔피언만.
+ * 비주류 배지와 같은 기준이라, 두 자리에서 진짜 쓰이는 챔피언은 두 목록에 다 나온다.
+ */
+const POS_SHARE = 0.005;
+
+/** 지금 챔피언이 들어갈 자리의 라인. 필터는 사람이 직접 고르지 않았으면 이걸 따라간다 */
+function targetRole(){
+  return (state.toMine || !state.active) ? state.myRole : state.active.role;
+}
+/** 지금 걸려 있는 필터 */
+function posNow(){
+  return state.posTouched ? state.posFilter : targetRole();
+}
+function inPosition(id, role){
+  const p = ROLES.findIndex(r => r.key === role);
+  const g = state.posGames[id];
+  if(p < 0 || !g || !state.posTotals[p]) return true;
+  return g[p] / state.posTotals[p] >= POS_SHARE;
+}
+
+function posCount(role){
+  return Object.keys(state.posGames).filter(id => inPosition(id, role)).length;
+}
+
+function renderPosFilter(searching){
+  const box = document.getElementById("posfilter");
+  // 모델이 없으면(목업) 셀 숫자가 없다 — 줄을 아예 숨긴다
+  box.hidden = Object.keys(state.posGames).length === 0;
+  if(box.hidden) return;
+  const tabs = [{key:"ALL", ko:L("전체", "All"), n:Object.keys(state.champions).length}]
+    .concat(ROLES.map(r => ({key:r.key, ko:roleName(r), n:posCount(r.key)})));
+  const now = posNow();
+  box.innerHTML = tabs.map(t =>
+    `<button data-pos="${t.key}" aria-pressed="${!searching && t.key===now}"
+       >${t.ko}<i>${t.n}</i></button>`).join("")
+    + (searching ? `<span class="searching">${L("검색 중 — 전체에서 찾습니다", "Searching — all roles")}</span>` : "");
+}
+
+function renderGrid(){
+  const query = document.getElementById("q").value;
+  const searching = query.trim().length > 0;
+  state.results = search(query, taken());
+  // 검색 중에는 필터를 무시한다 — 미드 필터를 켠 채 "케이틀린"을 쳤을 때
+  // 결과가 없으면 고장으로 보인다
+  const filter = posNow();
+  if(!searching && filter !== "ALL")
+    state.results = state.results.filter(([id]) => inPosition(id, filter));
+  renderPosFilter(searching);
+  if(state.cursor >= state.results.length) state.cursor = 0;
+  document.getElementById("grid").innerHTML = state.results.map(([id,c],i) =>
+    `<button data-pick="${id}" class="${i===state.cursor?"cursor":""}">
+       <img src="${portrait(id)}" alt="" loading="lazy"><span>${champName(c)}</span></button>`
+  ).join("") || `<div class="empty">${searching ? L("검색 결과가 없습니다", "No results") : L("이 자리에 나오는 챔피언이 없습니다", "No champions played in this role")}</div>`;
+
+  const a = state.active;
+  // 어디로 들어가는지 늘 한 줄로 말한다
+  const borrowed = a ? L(`<b>${a.team==="ally"?"아군":"상대"} ${roleKo(a.role)}</b> 자리에 넣습니다`,
+                         `Adding to <b>${a.team==="ally"?"ally":"enemy"} ${roleKo(a.role)}</b>`) : "";
+  const back = state.lcu.status === "champ_select"
+    ? L(`넣으면 내 자리로 돌아옵니다`, `Returns to your slot after adding`)
+    : L(`Esc 또는 내 칸을 눌러 내 자리로`, `Esc or click your slot to go back`);
+  document.getElementById("who").innerHTML = state.banMode
+    ? L(`<b>밴</b>을 찍는 중입니다 <span class="banmode">밴은 추천 후보에서만 빠집니다</span>`,
+        `Picking <b>bans</b> <span class="banmode">Bans are only removed from recommendations</span>`)
+    : state.toMine
+      ? L(`<b>내 자리</b>에 고민 중으로 넣습니다 <span class="banmode">최대 4개 · 다른 자리는 그 칸을 먼저 누르세요</span>`,
+          `Adding to <b>your slot</b> as candidates <span class="banmode">Up to 4 · click another slot first to fill it</span>`)
+      : (a ? `${borrowed} <span class="banmode">${back}</span>`
+           : L(`<b>내 자리</b>에 고민 중으로 넣습니다`, `Adding to <b>your slot</b> as candidates`));
+}
+
+/* ------------------------------------------------------------------ 추천 */
+/** 내 기록 표 — 이 자리에서 3판 이상 했을 때. 승률 숫자(모델)와 섞지 않는다 */
+function myRecordTag(m){
+  return `<span class="tag rec" title="${L("이 자리에서 내가 한 판 수와 승률 — 기록이지 예측이 아닙니다. 위 승률에는 섞지 않았습니다", "Your games and win rate in this role — a record, not a prediction. Not mixed into the win rate above")}">${L(`내 기록 ${m.games}판 · ${m.winrate}%`, `Me ${m.games}g · ${m.winrate}%`)}</span>`;
+}
+/** 칸이 정해진 만큼 붙는 내 기록. 줄 종류마다 이름·설명 */
+const LANE_KINDS = {
+  foe:      {label: ([a]) => L(`<b>${nameOf(a)}</b> 상대`, `vs <b>${nameOf(a)}</b>`),
+             tip: ([a], role) => L(`맞은편 ${josa(role, "이", "가")} ${josa(nameOf(a), "이었던", "였던")} 판`,
+                                   `Games where the opposing ${role} was ${nameOf(a)}`)},
+  enemyDuo: {label: ([a, b]) => L(`상대 봇 <b>${nameOf(a)}·${nameOf(b)}</b>`, `vs bot lane <b>${nameOf(a)}·${nameOf(b)}</b>`),
+             tip: ([a, b]) => L(`상대 원딜이 ${nameOf(a)}, 서폿이 ${josa(nameOf(b), "이었던", "였던")} 판`,
+                                `Games where the enemy Bot was ${nameOf(a)} and Support was ${nameOf(b)}`)},
+  partner:  {label: ([a]) => L(`우리 <b>${nameOf(a)}</b>${hasBatchim(nameOf(a)) ? "과" : "와"} 같이`, `with our <b>${nameOf(a)}</b>`),
+             tip: ([a]) => L(`우리 팀 봇 짝이 ${josa(nameOf(a), "이었던", "였던")} 판`,
+                             `Games where our bot lane partner was ${nameOf(a)}`)},
+};
+const laneRow = kind => state.myLane?.rows.find(r => r.kind === kind);
+/** 그 줄의 조건으로 이 챔피언을 한 기록 — 3판 이상일 때 */
+function myLaneTag(kind, m){
+  const row = laneRow(kind);
+  if(!row) return "";
+  const what = kind === "foe"
+    ? L(`${nameOf(row.champs[0])} 상대`, `vs ${nameOf(row.champs[0])}`)
+    : L(`${josa(nameOf(row.champs[0]), "과", "와")} 같이`, `with ${nameOf(row.champs[0])}`);
+  const role = roleKo(state.myRole);
+  const tip = L(`${LANE_KINDS[kind].tip(row.champs, role)}에서 이 챔피언을 한 판 수와 승률 — 기록이지 예측이 아닙니다`,
+                `${LANE_KINDS[kind].tip(row.champs, role)}: your games and win rate on this champion — a record, not a prediction`);
+  return `<span class="tag rec" title="${tip}">${what} ${L(`${m.games}판`, `${m.games}g`)} · ${m.winrate}%</span>`;
+}
+/** 내 기록 줄들. 판이 적은 줄은 흐리게 — 10판짜리 숫자를 믿게 하지 않는다 */
+function renderMyLane(m){
+  const box = document.getElementById("mylane");
+  state.myLane = m ?? null;
+  if(!m){ box.hidden = true; return; }
+  const role = roleKo(state.myRole);
+  box.hidden = false;
+  box.innerHTML = `<div class="head">${L(`내 기록 · ${role} 전체 ${m.roleGames}판`, `My stats · all ${role} games: ${m.roleGames}`)} ${m.roleWinrate ?? "—"}%</div>` +
+    m.rows.map(r => `<div class="row ${r.games < 10 ? "thin" : ""}" title="${LANE_KINDS[r.kind].tip(r.champs, role)}${L(" — 내가 무엇을 했든 다 셉니다. 기록이지 예측이 아닙니다", " — counts whatever you played. A record, not a prediction")}">
+      <span>${LANE_KINDS[r.kind].label(r.champs)}</span>
+      <span>${r.games ? `<b>${L(`${r.games}판`, `${r.games}g`)} · ${r.winrate}%</b>` : L("아직 없음", "None yet")}</span></div>`).join("");
+}
+// 비주류: 흔치 않은 픽
+const nicheTag = () => `<span class="tag niche" title="${L("흔치 않은 픽이라 장인 승률이 섞였을 수 있습니다", "Rarely picked — win rate may include one-tricks")}">${L("비주류", "Niche pick")}</span>`;
+function recHTML(r, i, span = 1){
+  const tags = [];
+  if(r.inPool)    tags.push(`<span class="tag mine">${L("내 풀", "My pool")}</span>`);
+  if(r.lowSample) tags.push(`<span class="tag low">${L("표본 부족", "Low sample")}</span>`);
+  // 비주류: 픽률 0.5% 미만. 빼지 않고 표시만 한다
+  if(r.niche)     tags.push(nicheTag());
+  // 오프포지션: 그 챔피언 경기의 1/4도 이 자리가 아니다
+  if(r.offRole)   tags.push(`<span class="tag niche" title="${L("이 챔피언이 주로 가는 자리가 아닙니다 — 그 자리 경기가 전체의 1/4 미만", "Not this champion's main role — under 1/4 of its games are here")}">${L("다른 자리", "Off-role")}</span>`);
+  if(r.mine)      tags.push(myRecordTag(r.mine));
+  if(r.mineVs)    tags.push(myLaneTag("foe", r.mineVs));
+  if(r.mineDuo)   tags.push(myLaneTag("partner", r.mineDuo));
+  const up = r.winrate >= 50;
+  const better = r.betterBy != null
+    ? L(`<div class="why">고민 목록보다 <em style="color:var(--good)">+${r.betterBy.toFixed(1)}%p</em> 높습니다</div>`,
+        `<div class="why"><em style="color:var(--good)">+${r.betterBy.toFixed(1)}pp</em> over your candidates</div>`) : "";
+  // 이유가 있으면 막대 세 줄, 없으면(목업 모드) 예전처럼 한 줄 + 승률 막대
+  const body = r.reasons
+    ? reasonBars(r, span)
+    : `${r.why ? `<div class="why">${r.why}</div>` : ""}<div class="bar"><i style="width:${r.bar ?? 100}%"></i></div>`;
+  return `<div class="rec">
+    <div class="rank">${i+1}</div>
+    <img src="${portrait(r.championId)}" alt="">
+    <div class="body">
+      <div class="top"><span class="nm">${nameOf(r.championId)}</span>${tags.join("")}
+        <span class="wr ${up?"up":"down"}">${r.winrate.toFixed(1)}%</span></div>
+      ${better}${body}${curveBlock(r)}
+    </div></div>`;
+}
+
+/* ------------------------------------------------------------------ 시간대별 곡선 */
+const CURVE_LO = 42, CURVE_HI = 58;    // 잣대 고정 — 목록 안에서 기울기를 견주려면 같은 자로 재야 한다
+const curveY = v => {
+  const p = (Math.max(CURVE_LO, Math.min(CURVE_HI, v)) - CURVE_LO) / (CURVE_HI - CURVE_LO);
+  return 38 - p * 34;
+};
+
+function curveSVG(c){
+  const x = i => (i / (c.length - 1)) * 148 + 1;
+  const pts = c.map((v, i) => `${x(i).toFixed(1)},${curveY(v).toFixed(1)}`).join(" ");
+  const rising = c[c.length - 1] >= c[0];
+  return `<svg viewBox="0 0 150 40" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" y1="${curveY(50)}" x2="150" y2="${curveY(50)}" stroke="var(--faint)" stroke-width=".5" stroke-dasharray="2 2"/>
+    <polyline points="${pts}" fill="none" stroke="${rising ? "var(--syn)" : "var(--gold)"}" stroke-width="1.6"/>
+    ${c.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${curveY(v).toFixed(1)}" r="1.7" fill="${v >= 50 ? "var(--good)" : "var(--bad)"}"/>`).join("")}
+  </svg>`;
+}
+
+/** 접은 곡선 한 벌. 열려 있는지는 state.curveOpen이 기억한다 (다시 그려도 열린 채로). */
+function curveBlock(r){
+  if(!r.curve || !r.curve.length) return "";
+  const open = state.curveOpen.has(r.championId);
+  const labels = state.curveLabels;
+  const ends = labels.length ? `<div class="ends"><span>${labels[0]} ${r.curve[0].toFixed(0)}%</span>
+      <span>50%</span><span>${labels[labels.length-1]} ${r.curve[r.curve.length-1].toFixed(0)}%</span></div>` : "";
+  return `<button class="curvebtn" data-curve="${r.championId}">${open ? L("시간대 접기", "Hide by game length") : L("시간대별 보기", "By game length")}</button>
+    <div class="curve" ${open ? "" : "hidden"}>${curveSVG(r.curve)}${ends}</div>`;
+}
+
+/* ------------------------------------------------------------------ 추천 이유 */
+// 반올림하면 0.0이 되는 값에는 부호를 붙이지 않는다
+const fmtPp = v => Math.abs(v) < 0.05 ? "0.0" : (v > 0 ? "+" : "−") + Math.abs(v).toFixed(1);
+const ppCls = v => Math.abs(v) < 0.05 ? "" : (v > 0 ? "pos" : "neg");
+const sumPp = xs => (xs || []).reduce((a, x) => a + x.pp, 0);
+// 받침에 맞는 조사 — "브라움이 / 벨코즈가", "잭스와 / 브라움과"
+const hasBatchim = s => { const c = String(s).charCodeAt(String(s).length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0; };
+const josa = (s, withB, without) => s + (hasBatchim(s) ? withB : without);
+
+/** 궁합·상성 중 크기 기준 이상인 것을 큰 순서로 */
+function topReasons(r, n){
+  const min = state.reasonMinPp ?? 0.1;
+  return [...r.reasons.synergy.map(x => ({...x, kind:"syn"})), ...r.reasons.counter.map(x => ({...x, kind:"ctr"}))]
+    .filter(x => Math.abs(x.pp) >= min)
+    .sort((a, b) => Math.abs(b.pp) - Math.abs(a.pp)).slice(0, n);
+}
+const reasonLabel = x => x.kind === "syn"
+  ? L(`${josa(nameOf(x.championId), "과", "와")} 궁합`, `synergy with ${nameOf(x.championId)}`)
+  : L(`${nameOf(x.championId)} 상대`, `vs ${nameOf(x.championId)}`);
+const reasonPhrase = x => `${reasonLabel(x)} <span class="${ppCls(x.pp)}">${fmtPp(x.pp)}</span>`;
+
+/** 막대 길이는 목록 전체에서 같은 잣대(span)를 쓴다 — 챔피언끼리 길이로 비교하게 */
+function reasonBars(r, span){
+  const s = r.reasons.strength, a = sumPp(r.reasons.synergy), e = sumPp(r.reasons.counter);
+  const bar = (v, c) => {
+    const w = Math.min(Math.abs(v) / span, 1) * 50;
+    return `<div class="rtrack"><div class="rseg ${c}" style="left:${v >= 0 ? 50 : 50 - w}%;width:${w}%"></div></div>`;
+  };
+  const top = topReasons(r, 1)[0];
+  return `<div class="rbars">
+      <span class="lab">${L("자체", "Base")}</span>${bar(s, "s")}<span class="val ${ppCls(s)}">${fmtPp(s)}</span>
+      <span class="lab">${L("궁합", "Syn")}</span>${bar(a, "a")}<span class="val ${ppCls(a)}">${fmtPp(a)}</span>
+      <span class="lab">${L("상성", "Ctr")}</span>${bar(e, "e")}<span class="val ${ppCls(e)}">${fmtPp(e)}</span>
+    </div>${top ? `<div class="why">${reasonPhrase(top)}</div>` : ""}`;
+}
+
+function reasonSpan(rows){
+  const vals = rows.filter(r => r.reasons).flatMap(r =>
+    [r.reasons.strength, sumPp(r.reasons.synergy), sumPp(r.reasons.counter)].map(Math.abs));
+  return Math.max(0.5, ...vals);     // 전부 작을 때 막대가 과장되지 않게 바닥을 둔다
+}
+
+/** 맞대결 1·2위가 갈린 이유. 후보가 하나면 그 후보의 이유 한 줄. */
+function splitReason(list){
+  const min = state.reasonMinPp ?? 0.1;
+  const [a, b] = list;
+  if(!a?.reasons) return a?.why ?? "";
+  if(!b?.reasons){
+    const bits = [`${L("챔피언 자체", "Champion itself")} <span class="${ppCls(a.reasons.strength)}">${fmtPp(a.reasons.strength)}</span>`,
+                  ...topReasons(a, 2).map(reasonPhrase)];
+    return bits.join(" · ");
+  }
+  const diffs = [{label: L("챔피언 자체", "champion itself"), d: a.reasons.strength - b.reasons.strength}];
+  for(const kind of ["synergy", "counter"]){
+    for(const x of a.reasons[kind]){
+      const y = b.reasons[kind].find(z => z.championId === x.championId);
+      diffs.push({label: reasonLabel({...x, kind: kind === "synergy" ? "syn" : "ctr"}), d: x.pp - (y ? y.pp : 0)});
+    }
+  }
+  const lead = diffs.filter(x => x.d >= min).sort((p, q) => q.d - p.d).slice(0, 2);
+  const back = diffs.filter(x => x.d <= -min).sort((p, q) => p.d - q.d).slice(0, 2);
+  const line = (who, verb, xs, sign) => xs.length
+    ? L(`<b>${josa(nameOf(who), "이", "가")}</b> ${verb} `, `<b>${nameOf(who)}</b> ${verb}: `) + xs.map(x => `${x.label} <span class="pos">+${(sign * x.d).toFixed(1)}</span>`).join(" · ")
+    : "";
+  return [line(a.championId, L("앞선 이유", "leads on"), lead, 1), line(b.championId, L("따라온 이유", "catches up on"), back, -1)].filter(Boolean).join("<br>");
+}
+
+function withBars(list){
+  if(!list.length) return list;
+  const hi = Math.max(...list.map(r=>r.winrate)), lo = Math.min(...list.map(r=>r.winrate));
+  return list.map(r => ({...r, bar: hi>lo ? (r.winrate-lo)/(hi-lo)*100 : 100}));
+}
+
+/** 고민 중인 후보를 나란히 놓고 맞대결. 밴픽에서 실제로 하는 판단이 이거다. */
+function renderCards(list){
+  const box = document.getElementById("cands");
+  const n = state.candidates.length;
+  document.getElementById("candcount").textContent = n ? L(`${n}개 비교`, `comparing ${n}`) : "";
+  document.getElementById("whysplit").innerHTML = "";
+
+  if(!n){
+    document.getElementById("candsub").textContent = L("내 자리를 눌러 후보를 넣으세요", "Click your slot to add candidates");
+    box.innerHTML = `<div class="empty">${L("고민 중인 챔피언 2~3개를 넣으면<br>나란히 놓고 비교합니다",
+      "Add the 2–3 champions you're considering<br>to compare them side by side")}</div>`;
+    return;
+  }
+  document.getElementById("candsub").textContent = L("지금 고민 중인 것끼리", "Head to head");
+
+  if(!list || !list.length){                      // 아직 응답 전
+    box.innerHTML = `<div class="cards" data-n="${Math.min(n,4)}">` +
+      state.candidates.map(id => `<div class="card">
+        <button class="drop" data-dropcand="${id}" title="${L("빼기", "Remove")}">×</button>
+        <img src="${portrait(id)}" alt=""><div class="nm">${nameOf(id)}</div>
+        <div class="wr">—</div><div class="gap">${L("계산하는 중", "Calculating")}</div></div>`).join("") +
+      `</div>`;
+    return;
+  }
+
+  const best = list[0].winrate;
+  box.innerHTML = `<div class="cards" data-n="${Math.min(list.length,4)}">` +
+    list.map((r,i) => `<div class="card ${i===0?"best":""}">
+      ${i===0 ? `<div class="crown">${L("최선", "Best")}</div>` : ""}
+      <button class="drop" data-dropcand="${r.championId}" title="${L("빼기", "Remove")}">×</button>
+      <img src="${portrait(r.championId)}" alt="">
+      <div class="nm">${nameOf(r.championId)}</div>
+      <div class="wr">${r.winrate.toFixed(1)}%</div>
+      <div class="gap">${i===0 ? L("기준", "Baseline") : (r.winrate-best).toFixed(1)+L("%p", "pp")}</div>
+      ${r.championId === state.myPick ? `<div class="gap"><span class="tag mine">${L("내 픽", "My pick")}</span></div>` : ""}
+      ${r.niche ? `<div class="gap">${nicheTag()}</div>` : ""}
+      ${r.mine ? `<div class="gap">${myRecordTag(r.mine)}</div>` : ""}
+      ${r.mineVs ? `<div class="gap">${myLaneTag("foe", r.mineVs)}</div>` : ""}
+      ${r.mineDuo ? `<div class="gap">${myLaneTag("partner", r.mineDuo)}</div>` : ""}
+      ${curveBlock(r)}
+    </div>`).join("") + `</div>`;
+
+  document.getElementById("whysplit").innerHTML = splitReason(list);
+}
+
+function renderRecs(data){
+  if(data?.reasonMinPp != null) state.reasonMinPp = data.reasonMinPp;
+  if(data?.curveLabels) state.curveLabels = data.curveLabels;
+  renderMyLane(data?.myLane);
+  renderCards(data ? withBars(data.candidates ?? []) : null);
+
+  // 선픽(아무것도 안 나옴)일 때도 추천한다.
+  // 정보가 없으면 이 포지션에서 강한 순서가 나오고, 그게 그 상황의 정답이다.
+  const box = document.getElementById("others");
+  const others = withBars(data?.others ?? []);
+  document.getElementById("othercount").textContent = others.length ? L(`${others.length}개`, `${others.length}`) : "";
+  const span = reasonSpan([...(data?.candidates ?? []), ...others]);
+  const legend = others.some(r => r.reasons)
+    ? `<div class="rlegend"><span><i style="background:var(--gold)"></i>${L("자체", "Base")}</span><span><i style="background:var(--syn)"></i>${L("아군 궁합", "Ally synergy")}</span><span><i style="background:var(--ctr)"></i>${L("상대 상성", "Enemy counter")}</span><span style="margin-left:auto">${L("평균 챔피언 대비 %p", "pp vs. average champion")}</span></div>`
+    : "";
+  box.innerHTML = data
+    ? (others.length ? legend + others.map((r, i) => recHTML(r, i, span)).join("") : `<div class="empty">${L("보여줄 챔피언이 없습니다", "No champions to show")}</div>`)
+    : `<div class="empty">${L("추천을 불러오지 못했습니다", "Couldn't load recommendations")}</div>`;
+  document.getElementById("modelnote").textContent = data?.note ?? "";
+}
+
+async function refresh(){
+  try{
+    const res = await fetch("/api/recommend", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        role: state.myRole, tier: state.tier,
+        ally: state.ally, enemy: state.enemy,
+        bans: state.bans,
+        pool: state.pool[state.myRole] ?? [],
+        candidates: state.candidates,
+        hide_off_role: state.hideOffRole,
+        lang: LANG,
+      })
+    });
+    renderRecs(await res.json());
+  }catch{ renderRecs(null); }
+}
+
+/* ------------------------------------------------------------------ 픽 */
+/** 그 팀의 다음 빈칸. 손으로 판을 짤 때 한 팀을 차례로 채우게 한다 */
+function nextEmptyIn(team){
+  for(const r of ROLES){
+    if(team === "ally" && r.key === state.myRole) continue;   // 내 자리는 ally에 넣지 않는다
+    if(!state[team][r.key]) return {team, role: r.key};
+  }
+  return null;
+}
+
+/** 내 자리로 돌아온다 — 기본 상태 */
+function goMine(){
+  state.toMine = true;
+  state.active = null;
+  state.posTouched = false;   // 목표가 바뀌면 필터는 다시 그 자리를 따라간다
+}
+
+function pick(id){
+  id = Number(id);
+  if(state.banMode){
+    state.bans.push(id);
+  }else if(state.toMine){
+    if(state.candidates.length >= 4) return;      // 4개 넘으면 카드가 못 읽게 좁아진다
+    state.candidates.push(id);
+  }else{
+    const a = state.active;
+    if(!a){ goMine(); return; }
+    state[a.team][a.role] = id;
+    markFixed(a.team, a.role);
+    // 연동이 밴픽 중이면 판은 연동이 채운다 — 한 칸 빌려 쓰고 내 자리로 돌아온다.
+    // 연동이 없으면 손으로 판을 짜는 중이니 그 팀의 다음 빈칸으로 넘어간다.
+    if(state.lcu.status === "champ_select") goMine();
+    else {
+      const next = nextEmptyIn(a.team);
+      if(next) state.active = next; else goMine();
+    }
+  }
+  document.getElementById("q").value = "";
+  state.cursor = 0;
+  renderBoard(); renderGrid(); refresh();
+  document.getElementById("q").focus();
+}
+
+function markFixed(team, role){
+  state.fixed[team].add(role);
+  delete state.slotMeta[team][role];
+}
+
+function resetDraft(){
+  state.ally = {}; state.enemy = {}; state.bans = []; state.candidates = []; state.myPick = 0;
+  state.banMode = false;
+  state.fixed = {ally: new Set(), enemy: new Set()};
+  state.slotMeta = {ally: {}, enemy: {}};
+  goMine();
+}
+
+/* ------------------------------------------------------------------ 자리 바꾸기 (끌어다 놓기) */
+let dragFrom = null;
+
+function dropTarget(e){
+  const el = e.target.closest?.("[data-slot]");
+  if(!el || !dragFrom) return null;
+  const [team, role] = el.dataset.slot.split(":");
+  // 같은 팀 안에서만. 내 자리에는 놓지 않는다.
+  if(team !== dragFrom.team || role === dragFrom.role) return null;
+  if(team === "ally" && role === state.myRole) return null;
+  return {el, team, role};
+}
+
+function moveSlot(team, from, to){
+  const board = state[team];
+  const a = board[from], b = board[to];
+  if(b) board[from] = b; else delete board[from];
+  board[to] = a;
+  // 옮긴 칸은 전부 사람이 정한 것이 된다
+  for(const role of [from, to]){
+    if(board[role]) markFixed(team, role);
+    else { state.fixed[team].delete(role); delete state.slotMeta[team][role]; }
+  }
+}
+
+document.addEventListener("dragstart", e => {
+  const el = e.target.closest?.("[data-slot]");
+  if(!el) return;
+  const [team, role] = el.dataset.slot.split(":");
+  if(!state[team][role] || (team === "ally" && role === state.myRole)){ e.preventDefault(); return; }
+  dragFrom = {team, role};
+  el.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", el.dataset.slot);
+});
+document.addEventListener("dragover", e => {
+  document.querySelectorAll(".slot.dropover").forEach(x => x.classList.remove("dropover"));
+  const d = dropTarget(e);
+  if(!d) return;
+  e.preventDefault();
+  d.el.classList.add("dropover");
+});
+document.addEventListener("drop", e => {
+  const d = dropTarget(e);
+  if(!d) return;
+  e.preventDefault();
+  moveSlot(d.team, dragFrom.role, d.role);
+  dragFrom = null;
+  // 빌린 칸이 자리를 옮겨 채워졌으면 내 자리로 돌아온다
+  if(!state.toMine && state.active && state[state.active.team][state.active.role]) goMine();
+  renderBoard(); renderGrid(); refresh();
+});
+document.addEventListener("dragend", () => {
+  if(!dragFrom) return;
+  dragFrom = null;
+  renderBoard();
+});
+
+/* ------------------------------------------------------------------ 클라이언트 연동 */
+function fixedParam(){
+  const out = [];
+  for(const [team, key] of [["ally", "a"], ["enemy", "e"]])
+    for(const role of state.fixed[team])
+      if(state[team][role]) out.push(`${key}:${role}:${state[team][role]}`);
+  return out.join(",");
+}
+
+const LCU_LABEL = {offline: L("클라이언트 꺼짐", "Client offline"), idle: L("클라이언트 대기", "Client idle"), champ_select: L("밴픽 중", "In champ select")};
+const sameBoard = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+
+function applyLcu(d){
+  const dot = document.getElementById("lcu");
+  dot.className = "lcu" + (d.status === "champ_select" ? " on" : d.status === "idle" ? " idle" : "");
+  dot.querySelector("span").textContent = LCU_LABEL[d.status] ?? LCU_LABEL.offline;
+  // 밴픽이 끝나도 마지막 상태를 지우지 않는다 — 로딩 화면에서 다시 볼 수 있게
+  if(d.status !== "champ_select"){ state.lcu.status = d.status; return; }
+  // 끄는 중에 판을 다시 그리면 끌기가 끊긴다
+  if(dragFrom) return;
+
+  let changed = false;
+  if(d.sessionSeq !== state.lcu.seq){ resetDraft(); state.lcu.seq = d.sessionSeq; changed = true; }
+  state.lcu.status = d.status;
+  if(d.myRole && d.myRole !== state.myRole){
+    state.myRole = d.myRole;
+    state.candidates = [];
+    changed = true;
+  }
+  // 내가 확정하면 내 칸에 넣고, 고민 중 맨 앞에 올려 승률과 다른 선택지 대비를 보게 한다
+  const myPick = d.myPick || 0;
+  if(myPick !== state.myPick){
+    state.myPick = myPick;
+    if(myPick && !state.candidates.includes(myPick))
+      state.candidates = [myPick, ...state.candidates].slice(0, 4);
+    changed = true;
+  }
+  for(const team of ["ally", "enemy"]){
+    const next = {}, meta = {};
+    for(const [role, v] of Object.entries(d[team] || {})){
+      if(team === "ally" && role === state.myRole) continue;
+      next[role] = v.championId;
+      if(!v.fixed) meta[role] = v;
+    }
+    // 지정한 칸은 서버에 제약으로 넘겼지만, 응답이 한 박자 늦을 수 있어 화면 쪽 값을 한 번 더 지킨다
+    for(const role of state.fixed[team]) if(state[team][role]) next[role] = state[team][role];
+    if(!sameBoard(next, state[team])){ state[team] = next; changed = true; }
+    state.slotMeta[team] = meta;
+  }
+  const bans = [...new Set([...state.bans, ...(d.bans || [])])];
+  if(bans.length !== state.bans.length){ state.bans = bans; changed = true; }
+
+  if(changed){
+    // 빌린 칸을 연동이 채워 줬으면 내 자리로 돌아온다. 그 밖에는 목표를 건드리지 않는다 —
+    // 1초마다 도는 폴링이 사람이 고른 자리를 빼앗으면 안 된다
+    if(!state.toMine && (!state.active || state[state.active.team][state.active.role])) goMine();
+    renderHeader(); renderBoard(); renderGrid(); refresh();
+  }
+}
+
+async function pollLcu(){
+  try{
+    const res = await fetch("/api/lcu?" + new URLSearchParams({fixed: fixedParam(), lang: LANG}));
+    applyLcu(await res.json());
+  }catch{
+    applyLcu({status: "offline"});
+  }
+  setTimeout(pollLcu, 1000);
+}
+
+/* ------------------------------------------------------------------ 풀 편집 */
+function renderPoolModal(){
+  document.getElementById("poolroles").innerHTML = ROLES.map(r =>
+    `<button data-poolrole="${r.key}" aria-pressed="${r.key===state.poolRole}">${roleName(r)}</button>`).join("");
+
+  const ids = state.pool[state.poolRole] ?? [];
+  document.getElementById("poolchips").innerHTML = ids.length
+    ? ids.map(id => `<span class="chip"><img src="${portrait(id)}" alt="">${nameOf(id)}
+         <button data-poolremove="${id}" title="${L("빼기", "Remove")}">×</button></span>`).join("")
+    : `<div class="none">${L("아직 없습니다. 아래에서 검색해 추가하세요.", "Nothing yet. Search below to add champions.")}</div>`;
+
+  // 기록으로 채우기 — 이 자리에서 5판 이상 한 것 중 풀에 없는 것만
+  const missing = (state.mePool[state.poolRole] ?? []).filter(id => !ids.includes(id));
+  const fill = document.getElementById("poolfill");
+  fill.hidden = !Object.keys(state.mePool).length;
+  document.getElementById("fillpool").disabled = !missing.length;
+  document.getElementById("fillpool").style.opacity = missing.length ? "" : ".45";
+  document.getElementById("poolfillnote").textContent = missing.length
+    ? L(`이 자리에서 5판 이상 한 챔피언 ${missing.length}개를 더합니다 — ${missing.map(nameOf).join(", ")}`,
+        `Adds ${missing.length} champions you've played 5+ games in this role — ${missing.map(nameOf).join(", ")}`)
+    : L(`이 자리에서 5판 이상 한 챔피언은 이미 다 들어 있습니다`, `All champions you've played 5+ games in this role are already in`);
+
+  state.poolResults = search(document.getElementById("poolq").value, new Set(ids));
+  document.getElementById("poolgrid").innerHTML = state.poolResults.map(([id,c]) =>
+    `<button data-pooladd="${id}"><img src="${portrait(id)}" alt="" loading="lazy">
+       <span>${champName(c)}</span></button>`).join("") || `<div class="empty">${L("결과 없음", "No results")}</div>`;
+}
+
+function openPool(){
+  state.poolRole = state.myRole;
+  document.getElementById("poolq").value = "";
+  document.getElementById("poolmodal").hidden = false;
+  renderPoolModal();
+  document.getElementById("poolq").focus();
+}
+function closePool(){
+  document.getElementById("poolmodal").hidden = true;
+  renderHeader(); refresh();
+  document.getElementById("q").focus();
+}
+
+/* ------------------------------------------------------------------ 이벤트 */
+document.addEventListener("click", e => {
+  const t = e.target;
+
+  if(t.closest("[data-openpool]") || t.closest("#openpool")) return openPool();
+  if(t.closest("#closepool")) return closePool();
+  if(t.id === "poolmodal") return closePool();          // 바깥 클릭
+
+  const pr = t.closest("[data-poolrole]");
+  if(pr){ state.poolRole = pr.dataset.poolrole; renderPoolModal(); return; }
+
+  const pa = t.closest("[data-pooladd]");
+  if(pa){
+    const id = Number(pa.dataset.pooladd);
+    (state.pool[state.poolRole] ??= []).push(id);
+    savePool(); document.getElementById("poolq").value = "";
+    renderPoolModal(); document.getElementById("poolq").focus(); return;
+  }
+  if(t.closest("#fillpool")){
+    const add = (state.mePool[state.poolRole] ?? []).filter(id => !state.pool[state.poolRole].includes(id));
+    state.pool[state.poolRole].push(...add);
+    savePool(); renderPoolModal(); renderHeader(); refresh(); return;
+  }
+  const prm = t.closest("[data-poolremove]");
+  if(prm){
+    const id = Number(prm.dataset.poolremove);
+    state.pool[state.poolRole] = state.pool[state.poolRole].filter(x => x!==id);
+    savePool(); renderPoolModal(); return;
+  }
+
+  const posBtn = t.closest("[data-pos]");
+  if(posBtn){
+    state.posFilter = posBtn.dataset.pos;
+    state.posTouched = true;            // 그 뒤로는 내 라인을 따라가지 않는다
+    state.cursor = 0;
+    renderGrid(); document.getElementById("q").focus(); return;
+  }
+
+  const roleBtn = t.closest("[data-role]");
+  if(roleBtn){
+    state.myRole = roleBtn.dataset.role;
+    delete state.ally[state.myRole];               // 내 자리는 비운다
+    state.myPick = 0;                              // 확정 픽은 원래 라인 것이다
+    state.candidates = [];                         // 라인이 바뀌면 후보도 의미가 없다
+    goMine();
+    renderHeader(); renderBoard(); renderGrid(); refresh(); return;
+  }
+  if(t.closest("#banadd")){
+    state.banMode = !state.banMode;
+    renderBoard(); renderGrid(); document.getElementById("q").focus(); return;
+  }
+  const unban = t.closest("[data-unban]");
+  if(unban){
+    state.bans = state.bans.filter(x => x !== Number(unban.dataset.unban));
+    renderBoard(); renderGrid(); refresh(); return;
+  }
+  const clr = t.closest("[data-clear]");
+  if(clr){
+    const [team, role] = clr.dataset.clear.split(":");
+    delete state[team][role];
+    state.fixed[team].delete(role);
+    delete state.slotMeta[team][role];
+    e.stopPropagation();
+    state.toMine = false; state.active = {team, role}; state.posTouched = false;
+    renderBoard(); renderGrid(); refresh(); return;
+  }
+  const cv = t.closest("[data-curve]");
+  if(cv){
+    const id = Number(cv.dataset.curve);
+    const box = cv.nextElementSibling;
+    const open = box.hidden;
+    box.hidden = !open;
+    cv.textContent = open ? L("시간대 접기", "Hide by game length") : L("시간대별 보기", "By game length");
+    open ? state.curveOpen.add(id) : state.curveOpen.delete(id);
+    return;
+  }
+  const drop = t.closest("[data-dropcand]");
+  if(drop){
+    const id = Number(drop.dataset.dropcand);
+    state.candidates = state.candidates.filter(x => x !== id);
+    renderBoard(); renderGrid(); refresh(); return;
+  }
+  if(t.closest("#reset")){
+    resetDraft();
+    document.getElementById("q").value = "";
+    renderHeader(); renderBoard(); renderGrid(); refresh();
+    document.getElementById("q").focus(); return;
+  }
+
+  const slot = t.closest("[data-slot]");
+  if(slot){
+    const [team, role] = slot.dataset.slot.split(":");
+    if(team==="ally" && role===state.myRole){          // 내 자리 = 기본으로 돌아오기
+      state.banMode = false;
+      goMine();
+      renderBoard(); renderGrid();
+      document.getElementById("q").focus(); return;
+    }
+    state.banMode = false; state.toMine = false;
+    state.active = {team, role};
+    state.posTouched = false;   // 빌린 자리의 라인을 따라간다
+    renderBoard(); renderGrid(); document.getElementById("q").focus(); return;
+  }
+  const p = t.closest("[data-pick]");
+  if(p) pick(p.dataset.pick);
+});
+
+document.getElementById("iron").addEventListener("change", e => {
+  state.iron = e.target.checked;
+  state.tier = state.iron ? "IRON" : state.baseTier;
+  saveIron(); refresh();
+});
+document.getElementById("onlyhere").addEventListener("change", e => {
+  state.hideOffRole = e.target.checked;
+  saveOffRole(); refresh();
+});
+document.getElementById("q").addEventListener("input", () => { state.cursor=0; renderGrid(); });
+document.getElementById("poolq").addEventListener("input", renderPoolModal);
+
+// 키 입력은 문서 전체에서 받는다. 밴픽 중에는 마우스를 옮기다 포커스가 자주 풀리는데,
+// 그때마다 입력창을 다시 클릭하게 만들면 몇 초를 버린다.
+document.addEventListener("keydown", e => {
+  const open = !document.getElementById("poolmodal").hidden;
+  const box = document.getElementById(open ? "poolq" : "q");
+
+  if(e.key === "Escape"){
+    if(open) return closePool();
+    if(box.value){ box.value=""; state.cursor=0; renderGrid(); return; }
+    if(state.banMode || !state.toMine){             // 빌린 자리·밴을 놓고 내 자리로
+      state.banMode = false;
+      goMine();
+      renderBoard(); renderGrid();
+    }
+    return;
+  }
+  if(e.key === "Enter"){
+    e.preventDefault();
+    if(open){
+      const first = state.poolResults[0];
+      if(first){
+        (state.pool[state.poolRole] ??= []).push(Number(first[0]));
+        savePool(); box.value=""; renderPoolModal();
+      }
+      return;
+    }
+    if(state.results.length) pick(state.results[state.cursor][0]);
+    return;
+  }
+  if(!open && e.key === "ArrowRight"){ state.cursor++; renderGrid(); e.preventDefault(); return; }
+  if(!open && e.key === "ArrowLeft"){ state.cursor=Math.max(0,state.cursor-1); renderGrid(); e.preventDefault(); return; }
+  if(document.activeElement !== box && e.key.length===1 && !e.ctrlKey && !e.metaKey) box.focus();
+});
+
+/* ------------------------------------------------------------------ 시작 */
+(async function init(){
+  loadPool(); loadOffRole(); loadIron();
+  document.getElementById("onlyhere").checked = state.hideOffRole;
+  document.getElementById("posfilter").setAttribute("aria-label", L("포지션 필터", "Position filter"));
+  const meta = await fetch(`/api/meta?lang=${LANG}`).then(r=>r.json());
+  state.champions = Object.fromEntries(
+    Object.entries(meta.champions).map(([k,v]) => [Number(k), v]));
+  state.version = meta.version;
+  // 아이언에만 보정이 있을 때만 묻는다. 보정이 없는 모델이면 칸이 숨은 채로 둔다
+  state.baseTier = meta.baseTier ?? "SILVER";
+  state.tier = state.iron ? "IRON" : state.baseTier;
+  document.getElementById("irontier").hidden = !meta.ironOnly;
+  document.getElementById("iron").checked = state.iron;
+  document.getElementById("meta").innerHTML = meta.status;
+  state.posGames = meta.positionGames || {};
+  state.posTotals = ROLES.map((_, p) =>
+    Object.values(state.posGames).reduce((sum, g) => sum + (g[p] || 0), 0));
+  // 내 기록 — 없으면 칸이 숨은 채로 둔다
+  if(meta.me){
+    document.getElementById("openme").hidden = false;
+    try{
+      state.mePool = (await fetch(`/api/me/pool?lang=${LANG}`).then(r=>r.json())).pool || {};
+    }catch{ state.mePool = {}; }
+    if(!state.poolStored && Object.keys(state.mePool).length){   // 처음 한 번만 — 손으로 만든 풀은 건드리지 않는다
+      for(const r of ROLES) state.pool[r.key] = [...(state.mePool[r.key] ?? [])];
+      savePool();
+    }
+  }
+  goMine();
+  renderHeader(); renderBoard(); renderGrid(); refresh();
+  document.getElementById("q").focus();
+  pollLcu();
+})();
+</script>
+</body>
+</html>

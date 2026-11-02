@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PickNote</title>
+<script src="/static/i18n.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#141a23; --panel2:#1b232f; --line:#2a3441;
+    --text:#e6edf3; --dim:#8b98a8; --faint:#5a6673;
+    --gold:#c8aa6e; --good:#4ade80; --bad:#f87171; --rec:#7cc4e0;
+    --win:#3f8bee; --loss:#d96c30; --ring:#333c49; --ring-strong:#66717f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 "Pretendard","Malgun Gothic",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  header{display:flex;align-items:center;gap:14px;padding:11px 20px;
+    border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  h1{font-size:16px;margin:0;font-weight:650;white-space:nowrap}
+  header .id{color:var(--dim);font-size:13px}
+  header .back{margin-left:auto;border:1px solid var(--line);border-radius:7px;padding:5px 11px;
+    color:var(--dim);font-size:13px;text-decoration:none;white-space:nowrap}
+  header .back:hover{color:var(--text);border-color:var(--faint)}
+  main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:16px;
+    grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:860px){main{grid-template-columns:1fr}}
+  .wide{grid-column:1/-1}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+  section h2{font-size:13px;margin:0 0 2px;font-weight:650}
+  section .sub{color:var(--faint);font-size:11.5px;margin:0 0 10px}
+
+  /* 맨 위 숫자 */
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .stat{background:var(--panel2);border-radius:10px;padding:10px 12px}
+  .stat .k{color:var(--faint);font-size:11.5px}
+  .stat .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .stat .s{color:var(--dim);font-size:11.5px}
+  .explain{color:var(--dim);font-size:12px;margin-top:12px;line-height:1.65}
+  .explain b{color:var(--text);font-weight:600}
+
+  /* 표 */
+  .tw{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th{color:var(--faint);font-weight:500;font-size:11.5px;text-align:right;padding:4px 8px;
+    border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:6px 8px;text-align:right;border-bottom:1px solid #1e2631;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tr.thin td{opacity:.5}
+  tr.rest td{color:var(--faint);font-size:12px}
+  .champ{display:flex;align-items:center;gap:8px}
+  .champ img{width:26px;height:26px;border-radius:6px;background:var(--panel2);flex:0 0 26px}
+  .champ small{color:var(--faint);font-size:11px}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  td.diffcell{width:150px}
+  .diff{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .diff .track{position:relative;width:80px;height:7px;background:#1f2733;border-radius:2px;flex:0 0 80px}
+  .diff .track::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)}
+  .diff .seg{position:absolute;top:0;height:100%;border-radius:2px}
+  .diff .seg.pos{background:var(--good)} .diff .seg.neg{background:var(--bad)}
+  .diff span{width:44px;text-align:right}
+  @media (max-width:640px){td.diffcell{width:auto} .diff .track{display:none}}
+
+  /* 달별 */
+  .months svg{display:block;width:100%;height:auto}
+  .months text{font:10.5px "Pretendard","Malgun Gothic",system-ui,sans-serif;fill:var(--faint)}
+  .months .wr{font-weight:600}
+  .foot{color:var(--faint);font-size:11.5px;line-height:1.7}
+  .foot code{color:var(--dim);background:var(--panel2);padding:1px 5px;border-radius:4px}
+  .empty{color:var(--faint);padding:40px 16px;text-align:center;grid-column:1/-1}
+
+  /* 승패 육각형 */
+  .hexbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:4px 0 12px}
+  .seg{display:inline-flex;background:var(--panel2);border-radius:8px;padding:3px;gap:2px}
+  .seg button{font:inherit;font-weight:600;font-size:13px;color:var(--dim);background:transparent;border:0;
+    border-radius:6px;padding:5px 12px;cursor:pointer;min-height:34px}
+  .seg button[aria-pressed="true"]{background:var(--line);color:var(--text)}
+  .hexbar select{font:inherit;font-size:13px;font-weight:600;color:var(--text);background:var(--panel2);
+    border:1px solid var(--line);border-radius:8px;padding:6px 9px;min-height:34px}
+  .seg button:focus-visible,.hexbar select:focus-visible{outline:2px solid var(--win);outline-offset:2px}
+  .hexbar select:disabled{color:var(--faint);cursor:not-allowed}
+  .hexbody{display:grid;gap:16px;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
+  @media (max-width:760px){.hexbody{grid-template-columns:minmax(0,1fr)}}
+  .hexbody svg{display:block;width:100%;max-width:380px;height:auto;margin:0 auto;overflow:visible}
+  .hexbody svg text{font:600 13px "Pretendard","Malgun Gothic",system-ui,sans-serif;fill:var(--text)}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--dim);margin-bottom:4px}
+  .legend i{display:inline-block;width:16px;height:0;border-top:2px solid;vertical-align:middle;margin-right:6px}
+  .legend i.dash{border-top-style:dashed}
+  .gaps{display:grid;gap:3px;font-size:13px}
+  .gaps h3{font-size:12px;color:var(--dim);font-weight:600;margin:6px 0 2px}
+  .gaps div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #1e2631;padding:4px 0}
+  .gaps div span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .gaps .noise{color:var(--faint)}
+  .gaps .wobble{display:block;border:0;color:var(--dim);font-size:12px;margin-top:10px;line-height:1.6}
+  .wobble b{color:var(--gold);font-weight:600}
+  .locked{display:grid;place-items:center;text-align:center;min-height:160px;color:var(--dim);
+    border:1px dashed var(--ring-strong);border-radius:8px;padding:16px}
+  td .base{color:var(--faint)}
+  .hextable th{white-space:normal;vertical-align:bottom}     /* 폰에서 티어 평균 칸이 밖으로 밀리지 않게 */
+  @media (max-width:520px){.hextable th,.hextable td{padding:5px 4px}}
+
+  /* 언어 전환 — 오른쪽 아래 구석, 머리줄 단추와 겹치지 않게 */
+  #lang-toggle{position:fixed;right:14px;bottom:14px;z-index:50;font:inherit;font-size:12px;font-weight:600;
+    color:var(--dim);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 11px;
+    cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+  #lang-toggle:hover{color:var(--text);border-color:var(--faint)}
+  #lang-toggle:focus-visible{outline:2px solid var(--win);outline-offset:2px}
+  body{padding-bottom:48px}
+</style>
+</head>
+<body>
+<header>
+  <h1 data-en="My record">내 기록</h1>
+  <span class="id" id="rid"></span>
+  <a class="back" href="/" data-en="Back to picks">추천 화면으로</a>
+</header>
+<main id="main"><div class="empty" data-en="Loading…">불러오는 중…</div></main>
+
+<script>
+const POS_KO = {TOP:L("탑", "Top"), JUNGLE:L("정글", "Jungle"), MIDDLE:L("미드", "Mid"), BOTTOM:L("원딜", "Bot"), UTILITY:L("서폿", "Support")};
+const THIN = 10;          // 이보다 적은 판은 흐리게 — 10판짜리 70%를 믿게 만들면 안 된다
+const PP = L("%p", "pp");
+let D = null;
+document.title = L("내 기록", "My record");
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = v => v == null ? "—" : `${v.toFixed(1)}%`;
+const sign = v => v == null ? "" : (v > 0 ? "pos" : v < 0 ? "neg" : "");
+const img = id => {
+  const c = D.champions_meta[id];
+  return c ? `https://ddragon.leagueoflegends.com/cdn/${D.version}/img/champion/${c.image}.png` : "";
+};
+const nameOf = id => D.champions_meta[id] ? champName(D.champions_meta[id]) : id;
+
+/** 내 몫 막대 — ±20%p를 끝으로 */
+function diffCell(v){
+  if(v == null) return `<td class="diffcell">—</td>`;
+  const w = Math.min(Math.abs(v), 20) / 20 * 50;
+  const left = v >= 0 ? 50 : 50 - w;
+  return `<td class="diffcell"><div class="diff">
+    <div class="track"><i class="seg ${sign(v)}" style="left:${left}%;width:${w}%"></i></div>
+    <span class="${sign(v)}">${v > 0 ? "+" : ""}${v.toFixed(1)}</span></div></td>`;
+}
+const cols = r => `<td>${r.games}</td><td class="${r.games >= THIN ? sign(r.winrate - 50) : ""}">${pct(r.winrate)}</td>`
+  + (D.hasModel ? `<td>${pct(r.expected)}</td>${diffCell(r.diff)}` : "");
+const head = first => `<tr><th>${first}</th><th>${L("판", "Games")}</th><th>${L("승률", "Win rate")}</th>`
+  + (D.hasModel ? `<th>${L("조합 기대", "Draft exp.")}</th><th>${L("내 몫 (%p)", "Your edge (pp)")}</th>` : "") + `</tr>`;
+const thin = r => r.games < THIN ? "thin" : "";
+
+function champCell(id, sub){
+  return `<div class="champ"><img src="${img(id)}" alt="" loading="lazy">
+    <span>${esc(nameOf(id))}${sub ? ` <small>${sub}</small>` : ""}</span></div>`;
+}
+
+function monthsSVG(months){
+  const W = 1000, H = 150, top = 22, base = 120, gap = 6;
+  const max = Math.max(...months.map(m => m.games));
+  const bw = (W - gap * (months.length - 1)) / months.length;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${L("달별 판 수와 승률", "Games and win rate by month")}">` + months.map((m, i) => {
+    const x = i * (bw + gap), h = (base - top) * m.games / max;
+    const col = m.games < THIN ? "var(--faint)" : m.winrate >= 50 ? "var(--good)" : "var(--bad)";
+    return `<rect x="${x}" y="${base - h}" width="${bw}" height="${h}" rx="3" fill="var(--panel2)" stroke="var(--line)"/>
+      <text class="wr" x="${x + bw / 2}" y="${base - h - 6}" text-anchor="middle" style="fill:${col}">${Math.round(m.winrate)}%</text>
+      <text x="${x + bw / 2}" y="${base + 14}" text-anchor="middle">${L(`${m.games}판`, `${m.games}g`)}</text>
+      <text x="${x + bw / 2}" y="${base + 27}" text-anchor="middle">${m.month.slice(2).replace("-", ".")}</text>`;
+  }).join("") + `</svg>`;
+}
+
+function render(){
+  document.title = `${L("내 기록", "My record")} · ${D.riotId}`;
+  document.getElementById("rid").textContent = `${D.riotId} · ${D.from} ~ ${D.to}`;
+  const a = D.all;
+  const pos = D.positions;
+  const html = [];
+
+  html.push(`<section class="wide">
+    <div class="stats">
+      <div class="stat"><div class="k">${L("판 수", "Games")}</div><div class="v">${a.games}</div><div class="s">${esc(D.remakeNote)}</div></div>
+      <div class="stat"><div class="k">${L("승률", "Win rate")}</div><div class="v ${sign(a.winrate - 50)}">${pct(a.winrate)}</div><div class="s">${L("솔로랭크 · 자유랭크", "Solo/Duo · Flex")}</div></div>
+      ${D.hasModel ? `
+      <div class="stat"><div class="k">${L("조합 기대", "Draft expectation")}</div><div class="v">${pct(a.expected)}</div><div class="s">${L("평균 실력이었다면", "At average skill")}</div></div>
+      <div class="stat"><div class="k">${L("내 몫", "Your edge")}</div><div class="v ${sign(a.diff)}">${a.diff > 0 ? "+" : ""}${a.diff.toFixed(1)}${PP}</div><div class="s">${L("실제 − 조합 기대", "Actual − draft expectation")}</div></div>` : ""}
+    </div>
+    ${D.hasModel ? `<div class="explain">${L(`<b>조합 기대</b>는 모델이 그 판의 열 챔피언만 보고 낸 우리 팀 승률입니다 — "평균 실력이었다면".
+      실제 승률에서 그걸 빼면 <b>조합 탓을 덜어 낸 내 몫</b>이 됩니다.
+      판 수가 ${THIN}판 안 되는 줄은 흐리게 보입니다 — 우연으로도 쉽게 ±15%p가 납니다.`,
+      `<b>Draft expectation</b> is your team's win rate as the model sees it from the ten champions alone — "at average skill".
+      Subtract it from your actual win rate and you get <b>your edge, with the draft factored out</b>.
+      Rows with fewer than ${THIN} games are faded — chance alone easily swings them ±15pp.`)}</div>` : ""}
+  </section>`);
+
+  // 계정이 둘 이상일 때만 — 계정마다 붙는 상대 수준이 다를 수 있어 따로도 본다
+  if(D.accounts?.length) html.push(`<section class="wide"><h2>${L("계정별", "By account")}</h2><div class="sub">${L("위 숫자는 전부 합친 것 · 계정마다 만나는 상대 수준이 다를 수 있습니다", "The numbers above combine all accounts · each account may face a different level of opponents")}</div>
+    <div class="tw"><table>${head(L("계정", "Account"))}${D.accounts.map(r =>
+      `<tr class="${thin(r)}"><td>${esc(r.riotId)}</td>${cols(r)}</tr>`).join("")}</table></div></section>`);
+
+  html.push(`<section class="wide" id="hex" hidden></section>`);
+
+  html.push(`<section><h2>${L("포지션", "Position")}</h2><div class="sub">${L("어느 자리에서 내 몫이 나오나", "Where your edge comes from")}</div>
+    <div class="tw"><table>${head(L("포지션", "Position"))}${pos.map(r =>
+      `<tr class="${thin(r)}"><td>${POS_KO[r.position] ?? r.position}</td>${cols(r)}</tr>`).join("")}</table></div></section>`);
+
+  html.push(`<section><h2>${L("경기 길이별", "By game length")}</h2><div class="sub">${L(`"그 길이까지 갔을 때" 이긴 비율`, `Win rate in games that lasted that long`)}</div>
+    <div class="tw"><table>${head(L("길이", "Length"))}${D.duration.map(r =>
+      `<tr class="${thin(r)}"><td>${r.label}</td>${cols(r)}</tr>`).join("")}</table></div></section>`);
+
+  const rest = D.rest;
+  html.push(`<section class="wide"><h2>${L("챔피언", "Champions")}</h2><div class="sub">${L("그 자리에서 3판 이상 · 판 수 순", "3+ games in that position · by games played")}</div>
+    <div class="tw"><table>${head(L("챔피언", "Champion"))}${D.champions.map(r =>
+      `<tr class="${thin(r)}"><td>${champCell(r.championId, POS_KO[r.position] ?? "")}</td>${cols(r)}</tr>`).join("")}
+      ${rest.games ? `<tr class="rest"><td>${L(`나머지 ${rest.champions}개 (각 1~2판)`, `${rest.champions} others (1–2 games each)`)}</td>${cols(rest)}</tr>` : ""}
+    </table></div></section>`);
+
+  html.push(`<section class="wide months"><h2>${L("달별", "By month")}</h2><div class="sub">${L(`막대는 판 수, 위 숫자는 그달 승률 (${THIN}판 미만은 회색)`, `Bars are games played, numbers above are that month's win rate (gray under ${THIN} games)`)}</div>
+    ${monthsSVG(D.months)}</section>`);
+
+  html.push(`<section><h2>${L("자주 만난 상대 라이너", "Frequent lane opponents")}</h2><div class="sub">${L("같은 포지션의 상대 챔피언 · 5판 이상", "Enemy champion in your position · 5+ games")}</div>
+    ${D.lane.length ? `<div class="tw"><table>${head(L("상대", "Opponent"))}${D.lane.map(r =>
+      `<tr class="${thin(r)}"><td>${champCell(r.championId)}</td>${cols(r)}</tr>`).join("")}</table></div>`
+      : `<div class="sub">${L("아직 5판 넘게 만난 상대가 없습니다", "No opponent faced 5+ times yet")}</div>`}</section>`);
+
+  html.push(`<section><h2>${L("같이 한 사람", "Teammates")}</h2><div class="sub">${L("같은 팀으로 3판 이상 — 이름은 저장하지 않아 번호로만 보입니다", "3+ games on the same team — names aren't stored, so they show as numbers")}</div>
+    ${D.mates.length ? `<div class="tw"><table>${head("")}${D.mates.map(r =>
+      `<tr class="${thin(r)}"><td>${r.label}</td>${cols(r)}</tr>`).join("")}</table></div>`
+      : `<div class="sub">${L("없습니다", "None")}</div>`}</section>`);
+
+  html.push(`<section class="wide foot">${L(`
+    새 경기는 <code>4_MyRecord.cmd</code>로 받습니다 — 요청 몇 번이라 수집기와 같이 돌아도 됩니다.<br>
+    추천 화면의 승률 숫자에는 이 기록을 섞지 않았습니다. 지난 판들로 다음 판을 더 잘 맞히는지 재 봤는데
+    아직 판이 적어 가려지지 않았습니다 — 기록은 추천 줄에 <b>내 기록 N판 · W%</b>로만 붙습니다.`, `
+    New games are fetched with <code>4_MyRecord.cmd</code> — it's only a few requests, so it can run alongside the collector.<br>
+    This record is not mixed into the win rates on the pick screen. We tested whether past games predict the next one better,
+    but there aren't enough games yet to tell — the record only appears on recommendation rows as <b>My record N games · W%</b>.`)}
+  </section>`);
+
+  document.getElementById("main").innerHTML = html.join("");
+}
+
+// ---------------------------------------------------------------- 승패 육각형
+const HEX_AXES = [
+  {k:"gold15", n:L("라인전", "Laning"), u:L("15분 골드", "Gold at 15")}, {k:"gold", n:L("골드", "Gold"), u:L("분당 골드", "Gold/min")},
+  {k:"dmg", n:L("딜", "Damage"), u:L("분당 챔피언 딜", "Champion damage/min")}, {k:"kp", n:L("킬 관여", "Kill participation"), u:L("킬 관여", "Kill participation")},
+  {k:"deaths", n:L("생존", "Survival"), u:L("데스 (적을수록 앞섬)", "Deaths (fewer is ahead)"), s:L("데스 (적을수록)", "Deaths (fewer is better)")}, {k:"vision", n:L("시야", "Vision"), u:L("분당 시야 점수", "Vision score/min")},
+];
+const HEX_EXTRA = [{k:"cs", u:L("분당 CS", "CS/min")}, {k:"kda", u:"KDA"}, {k:"solo", u:L("솔로킬", "Solo kills")}, {k:"ctrl", u:L("제어 와드", "Control wards")}];
+const TIER_KO = {IRON:L("아이언", "Iron"), BRONZE:L("브론즈", "Bronze"), SILVER:L("실버", "Silver"), GOLD:L("골드", "Gold"), PLATINUM:L("플래티넘", "Platinum")};
+const MODE_KO = {all:L("전체", "All"), win:L("이긴 판", "Wins"), loss:L("진 판", "Losses")};
+const MODE_LC = {all:"all", win:"wins", loss:"losses"};     // 영어 문장 가운데에 들어가는 소문자
+let H = null;
+const store = {get(k){ try{ return localStorage.getItem(k); }catch{ return null; } },
+               set(k, v){ try{ localStorage.setItem(k, v); }catch{} }};
+// 주소 끝 #win&pos=BOTTOM&champ=110 처럼 그 보기부터 연다
+const hash = new URLSearchParams(location.hash.slice(1));
+const hx = {mode:hash.has("win") ? "win" : hash.has("loss") ? "loss" : "all", tier:store.get("hexTier") || "SILVER",
+            acct:hash.get("acct") || "", pos:hash.get("pos") || "", champ:hash.get("champ") || ""};   // 계정 · 자리 · 챔피언 — 빈 값이면 전부
+const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+
+const hexAcct = () => H.games.filter(g => !hx.acct || g.account === hx.acct);
+/** 계정·자리·챔피언까지 거른 판 — 승패 버튼의 판 수도 이걸 센다 */
+const hexScope = () => hexAcct().filter(g => (!hx.pos || g.pos === hx.pos) && (!hx.champ || g.champ === +hx.champ));
+const hexPick = () => hexScope().filter(g => hx.mode === "all" || g.win === (hx.mode === "win" ? 1 : 0));
+/** 내 값: 맞은편보다 앞선 판의 비율 (동률은 반) */
+const myLead = (sel, k) => { const v = avg(sel.map(g => g.lead[k]).filter(x => x != null)); return v == null ? null : v * 100; };
+/** 챔피언을 골랐고 표본에 그 챔피언이 그 자리로 100쌍 넘게 있으면 그 챔피언의 기준. 아니면 null */
+const champBase = g => hx.champ ? H.champs?.[g.pos]?.[String(g.champ)] ?? null : null;
+/** 회색선: 같은 결과의 보통 사람. 자리를 합쳤으면 내 판의 자리 비율로 섞는다. 자리 기준의 전체는 늘 50.
+ *  챔피언 기준 = 자리·티어 기준 + (챔피언 다섯 티어 합 − 자리 다섯 티어 합) — 티어 차이는 자리에서, 챔피언 차이는 합친 표본에서 */
+function baseLead(sel, k){
+  const T = H.tiers[hx.tier];
+  return avg(sel.filter(g => T[g.pos]).map(g => {
+    const w = T[g.pos].winLead[k];
+    const pos = hx.mode === "all" ? 50 : hx.mode === "win" ? w : 100 - w;
+    const c = champBase(g)?.lead[hx.mode]?.[k], p = H.posPooled?.[g.pos]?.lead[hx.mode]?.[k];
+    return c == null || p == null ? pos : Math.min(100, Math.max(0, pos + c - p));
+  }));
+}
+/** 절댓값은 시즌이 바뀌면 기준이 움직인다 — 내 값도 티어 평균도 이번 시즌 판으로만 */
+const myMean = (cur, k) => avg(cur.map(g => g.me[k]).filter(x => x != null));
+function tierMean(cur, k){
+  const T = H.tiers[hx.tier];
+  return avg(cur.filter(g => T[g.pos]).map(g => champBase(g)?.mean[hx.mode]?.[k] ?? T[g.pos].mean[hx.mode][k]));
+}
+function absFmt(k, v){
+  if(v == null) return "—";
+  if(k === "kp") return `${Math.round(v * 100)}%`;
+  if(k === "gold15" || k === "gold" || k === "dmg") return Math.round(v).toLocaleString();
+  if(k === "vision" || k === "kda" || k === "solo") return v.toFixed(2);
+  return v.toFixed(1);
+}
+const wobble = n => Math.round(98 / Math.sqrt(n));    // 앞선 비율 50%일 때 95% 폭
+
+function hexRadar(series){
+  const CX = 170, CY = 150, R = 104;
+  const pt = (i, v) => { const a = -Math.PI / 2 + i * Math.PI / 3, r = R * v / 100;
+    return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+  const pts = f => HEX_AXES.map((a, i) => pt(i, f(a)).map(n => n.toFixed(1)).join(",")).join(" ");
+  let s = `<svg viewBox="0 0 340 300" role="img" aria-label="${esc(series.map(x => x.label).join(", "))} ${L("육각형", "hexagon")}">`;
+  [25, 50, 75, 100].forEach(v => s += `<polygon points="${pts(() => v)}" fill="none" stroke="var(${v === 50 ? "--ring-strong" : "--ring"})" stroke-width="1"/>`);
+  HEX_AXES.forEach((_, i) => { const [x, y] = pt(i, 100);
+    s += `<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--ring)" stroke-width="1"/>`; });
+  HEX_AXES.forEach((a, i) => { const [x, y] = pt(i, 119);
+    const anchor = Math.abs(x - CX) < 4 ? "middle" : x > CX ? "start" : "end";
+    s += `<text x="${x.toFixed(1)}" y="${(y + 5).toFixed(1)}" text-anchor="${anchor}">${a.n}</text>`; });
+  series.forEach(ser => {
+    if(ser.fill) s += `<polygon points="${pts(a => ser.vals[a.k])}" fill="var(${ser.color})" fill-opacity=".16"/>`;
+    s += `<polygon points="${pts(a => ser.vals[a.k])}" fill="none" stroke="var(${ser.color})" stroke-width="2" stroke-linejoin="round"${ser.dash ? ' stroke-dasharray="5 4"' : ""}/>`;
+  });
+  const me = series.find(x => !x.dash);
+  HEX_AXES.forEach((a, i) => { const [x, y] = pt(i, me.vals[a.k]);
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="var(${me.color})" stroke="var(--panel)" stroke-width="2"/>`
+      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="16" fill="transparent"><title>${a.n} · ${a.u}\n${
+        series.map(ser => `${ser.label} ${Math.round(ser.vals[a.k])}%`).join("\n")}</title></circle>`; });
+  return s + "</svg>";
+}
+
+function renderHex(){
+  const box = document.getElementById("hex");
+  if(!box || !H?.available) return;
+  box.hidden = false;
+  const tally = (gs, key) => { const c = {}; gs.forEach(g => c[key(g)] = (c[key(g)] || 0) + 1);
+    return Object.entries(c).sort((a, b) => b[1] - a[1]); };
+  const accounts = tally(H.games, g => g.account);
+  if(hx.acct && !accounts.some(([a]) => a === hx.acct)) hx.acct = "";
+  const acctGames = hexAcct();
+  const positions = tally(acctGames, g => g.pos);
+  if(hx.pos && !positions.some(([p]) => p === hx.pos)) hx.pos = "";
+  const champs = tally(acctGames.filter(g => !hx.pos || g.pos === hx.pos), g => g.champ);
+  if(hx.champ && !champs.some(([c]) => c === hx.champ)) hx.champ = "";     // 자리를 바꿔 그 자리에 없는 챔피언
+  const sel = hexPick(), n = sel.length, cur = sel.filter(g => g.season === H.season);
+  const scope = hexScope();
+  const comp = tally(scope, g => g.pos).map(([p, c]) => `${POS_KO[p] ?? p} ${c}`).join(" · ");
+  const mixed = new Set(scope.map(g => g.pos)).size > 1;
+  const tierKo = TIER_KO[hx.tier];
+  const cInfo = scope.map(champBase).find(Boolean);           // 챔피언 회색선을 쓰나
+  const cName = hx.champ ? nameOf(hx.champ) : "";
+  const cPos = scope.length ? POS_KO[scope[0].pos] ?? scope[0].pos : "";
+
+  let body;
+  if(n < H.minGames){
+    body = `<div class="locked">${L(`${MODE_KO[hx.mode]} ${n}판 — ${H.minGames}판부터 보여 줍니다`, `${MODE_KO[hx.mode]}: ${n} games — shown from ${H.minGames} games`)}</div>`;
+  }else{
+    const mine = {}, base = {};
+    HEX_AXES.forEach(a => { mine[a.k] = myLead(sel, a.k) ?? 0; base[a.k] = baseLead(sel, a.k) ?? 50; });
+    const baseLabel = cInfo ? (hx.mode === "all" ? L(`보통 ${cName}`, `Average ${cName}`) : L(`${tierKo} ${MODE_KO[hx.mode]} 보통 ${cName}`, `Average ${tierKo} ${cName} (${MODE_LC[hx.mode]})`))
+      : hx.mode === "all" ? L("맞은편과 동률", "Even with lane opponent") : L(`${tierKo} ${MODE_KO[hx.mode]} 보통`, `Average ${tierKo} (${MODE_LC[hx.mode]})`);
+    const baseWobble = cInfo ? L(`<br>회색선도 표본 ${cInfo.n[hx.mode].toLocaleString()}쌍이라 ±${wobble(cInfo.n[hx.mode])}%p 흔들립니다.`,
+      `<br>The gray line also comes from ${cInfo.n[hx.mode].toLocaleString()} pairs, so it can swing ±${wobble(cInfo.n[hx.mode])}pp.`) : "";
+    const ser = [{label: baseLabel, vals: base, color: "--dim", dash: true},
+                 {label: L("나", "You"), vals: mine, color: hx.mode === "loss" ? "--loss" : "--win", fill: true}];
+    const w = wobble(n);
+    const gaps = HEX_AXES.map(a => ({a, g: mine[a.k] - base[a.k]})).sort((x, y) => x.g - y.g);
+    const row = x => `<div class="${Math.abs(x.g) < w ? "noise" : ""}"><span>${x.a.n}</span>
+      <span>${L("나", "You")} ${Math.round(mine[x.a.k])} · ${L("보통", "avg")} ${Math.round(base[x.a.k])} → <b>${x.g >= 0 ? "+" : "−"}${Math.abs(x.g).toFixed(0)}${PP}</b></span></div>`;
+    const more = [50, 100].filter(m => m > n).map(m => L(`${m}판이면 ±${wobble(m)}`, `±${wobble(m)} at ${m} games`)).join(", ");
+    const tRow = a => {
+      const me = myLead(sel, a.k), b = baseLead(sel, a.k);
+      return `<tr><td>${a.s ?? a.u}</td><td>${me == null ? "—" : Math.round(me) + "%"} <span class="base">/ ${b == null ? "—" : Math.round(b) + "%"}</span></td>
+        <td>${absFmt(a.k, myMean(cur, a.k))}</td><td>${absFmt(a.k, tierMean(cur, a.k))}</td></tr>`;
+    };
+    const legend = `<div class="legend">` + ser.map(x => `<span><i class="${x.dash ? "dash" : ""}" style="border-color:var(${x.color})"></i>${x.label}</span>`).join("")
+      + `<span><i style="border-color:var(--ring-strong);border-top-width:1px"></i>${L("진한 선 50%", "Bold ring 50%")}</span></div>`;
+    // 위아래 둘씩 — 단, 보통보다 뒤진 축을 "앞선 축"에 넣지는 않는다
+    // 반올림해서 0인 축은 어느 쪽에도 넣지 않는다 ("+0%p 앞선 축"이 되지 않게)
+    const behind = gaps.filter(x => Math.round(x.g) < 0).slice(0, 2), ahead = gaps.filter(x => Math.round(x.g) > 0).reverse().slice(0, 2);
+    const list = (xs, none) => xs.length ? xs.map(row).join("") : `<div class="noise"><span>${none}</span></div>`;
+    body = `<div class="hexbody">
+        <div>${legend}${hexRadar(ser)}</div>
+        <div class="gaps"><h3>${L("보통보다 가장 뒤처진 축", "Furthest behind average")}</h3>${list(behind, L("없습니다", "None"))}
+          <h3>${L("보통보다 가장 앞선 축", "Furthest ahead of average")}</h3>${list(ahead, L("없습니다", "None"))}
+          <div class="wobble"><b>${L(`${n}판 기준 · 축마다 ±${w}%p 흔들릴 수 있습니다`, `Based on ${n} games · each axis can swing ±${w}pp`)}</b>${more ? ` · ${more}` : ""}<br>
+            ${L("흐린 줄은 차이가 흔들림 폭 안이라 아직 우연과 가려지지 않습니다.", "Faded rows are within that margin, so they can't yet be told apart from chance.")}${baseWobble}</div></div>
+      </div>
+      <div class="tw" style="margin-top:14px"><table class="hextable">
+        <tr><th>${L("지표", "Stat")}</th><th title="${L("앞 숫자: 내 판 중 맞은편 라이너보다 그 값이 좋았던 판의 비율 · 뒤 숫자: 같은 조건의 일반적인 게임에서 그 비율", "First number: share of your games where you beat your lane opponent on this stat · second: the same share in a typical game under the same conditions")}">${L("상대보다 잘했던 게임 /<br>일반적인 게임", "Games ahead of opponent /<br>typical game")}</th><th>${L(`나 · 시즌 ${H.season} ${cur.length}판`, `You · season ${H.season}, ${cur.length} games`)}</th><th>${L(`${cInfo ? `보통 ${cName}` : tierKo}${hx.mode === "all" ? "" : " " + MODE_KO[hx.mode]} 평균`, `${cInfo ? cName : tierKo} avg${hx.mode === "all" ? "" : ` (${MODE_LC[hx.mode]})`}`)}</th></tr>
+        ${HEX_AXES.map(tRow).join("")}${HEX_EXTRA.map(tRow).join("")}</table></div>`;
+  }
+
+  const count = m => m === "all" ? scope.length : scope.filter(g => g.win === (m === "win" ? 1 : 0)).length;
+  const opt = (v, label, on) => `<option value="${v}"${on ? " selected" : ""}>${esc(label)}</option>`;
+  const note = cInfo ? L(`회색선은 보통 ${cName} — 다섯 티어를 합쳐 잰 챔피언 차이를 ${tierKo} ${cPos} 기준에 더했습니다`,
+      `the gray line is an average ${cName} — the champion gap measured across all five tiers, added to the ${tierKo} ${cPos} baseline`)
+    : hx.champ ? L(`표본의 ${cName} ${cPos} 판이 ${H.champMin ?? 100}쌍이 안 돼 회색선은 ${cPos} 보통 사람입니다 — 챔피언 차이가 섞입니다`,
+      `the sample has fewer than ${H.champMin ?? 100} ${cName} ${cPos} pairs, so the gray line is an average ${cPos} player — champion differences are mixed in`)
+    : mixed ? L("자리를 합쳐서 보고, 회색선은 내 판의 자리 비율로 섞습니다", "positions are combined, and the gray line is blended by your games' position mix") : "";
+  box.innerHTML = `<h2>${L("승패 육각형", "Win/loss hexagon")}</h2>
+    <div class="sub">${L("맞은편 라이너보다 앞선 판의 비율 · 솔로랭크 15분 넘은 판", "Share of games ahead of your lane opponent · Solo/Duo games over 15 min")} · ${comp}${note ? ` — ${note}` : ""}</div>
+    <div class="hexbar">
+      <div class="seg" role="group" aria-label="${L("승패", "Win/loss")}">${Object.entries(MODE_KO).map(([m, l]) =>
+        `<button type="button" data-mode="${m}" aria-pressed="${m === hx.mode}">${l} ${count(m)}</button>`).join("")}</div>
+      ${accounts.length > 1 ? `<select id="hexAcct" aria-label="${L("계정", "Account")}">${opt("", L(`계정 전체 ${H.games.length}`, `All accounts ${H.games.length}`), !hx.acct)}${
+        accounts.map(([a, c]) => opt(a, `${a} ${c}`, a === hx.acct)).join("")}</select>` : ""}
+      <select id="hexPos" aria-label="${L("자리", "Position")}">${opt("", L(`자리 전체 ${acctGames.length}`, `All positions ${acctGames.length}`), !hx.pos)}${positions.map(([p, c]) =>
+        opt(p, `${POS_KO[p] ?? p} ${c}`, p === hx.pos)).join("")}</select>
+      <select id="hexChamp" aria-label="${L("챔피언", "Champion")}">${opt("", L("챔피언 전체", "All champions"), !hx.champ)}${champs.map(([c, k]) =>
+        opt(c, L(`${nameOf(c)} ${k}판${k < H.minGames ? " · 10판 미만" : ""}`, `${nameOf(c)} ${k} games${k < H.minGames ? " · under 10" : ""}`), c === hx.champ)).join("")}</select>
+      <select id="hexTier" aria-label="${L("비교할 티어", "Tier to compare")}"${cInfo && hx.mode === "all" ? ` disabled title="${L("챔피언 전체 보기는 다섯 티어를 합친 값이라 티어가 바꾸는 게 없습니다", "With a champion selected, the All view pools all five tiers, so the tier changes nothing")}"` : ""}>${Object.entries(TIER_KO).map(([t, l]) =>
+        opt(t, L(`${l} 기준`, `vs ${l}`), t === hx.tier)).join("")}</select>
+    </div>
+    ${body}
+    <div class="foot" style="margin-top:10px">${L(`기준은 ${H.patch} 패치 티어마다 1,000판에서 잰 값입니다. 앞선 비율은 패치·MMR이 같은 맞은편과 비교해서 옛 판도 그대로 씁니다.
+      표의 절댓값만 시즌마다 기준이 움직여서 이번 시즌 판으로 셉니다.`,
+      `Baselines are measured from 1,000 games per tier on patch ${H.patch}. Lead shares compare you with a lane opponent on the same patch and MMR, so older games still count.
+      Only the table's absolute values shift with each season, so they use this season's games.`)} ${cInfo
+        ? L("챔피언 보기에서는 전체 보기의 회색선도 그 챔피언의 값이고(다섯 티어 합), 티어는 이긴 판·진 판의 회색선을 바꿉니다.",
+            "In champion view, the All gray line is that champion's value too (all five tiers pooled); the tier changes the gray line for wins and losses.")
+        : L("전체 보기의 회색선은 티어와 상관없이 50이고, 티어는 표의 평균을 바꿉니다.",
+            "In the All view the gray line is 50 regardless of tier; the tier changes the table's averages.")}</div>`;
+
+  box.querySelectorAll(".seg button").forEach(b => b.onclick = () => { hx.mode = b.dataset.mode; renderHex(); });
+  box.querySelector("#hexTier").onchange = e => { hx.tier = e.target.value; store.set("hexTier", hx.tier); renderHex(); };
+  const acct = box.querySelector("#hexAcct");
+  if(acct) acct.onchange = e => { hx.acct = e.target.value; renderHex(); };
+  box.querySelector("#hexPos").onchange = e => { hx.pos = e.target.value; renderHex(); };
+  box.querySelector("#hexChamp").onchange = e => { hx.champ = e.target.value; renderHex(); };
+}
+
+(async function(){
+  try{
+    D = await fetch(`/api/me/summary?lang=${LANG}`).then(r => r.json());
+  }catch{ D = {available:false}; }
+  if(!D.available){
+    document.getElementById("main").innerHTML = `<div class="empty">${L(`아직 받은 내 경기가 없습니다.<br>
+       <code>4_MyRecord.cmd</code> 를 실행해 Riot ID를 적으면 받아 옵니다.`, `No games of yours have been fetched yet.<br>
+       Run <code>4_MyRecord.cmd</code> and enter your Riot ID to fetch them.`)}</div>`;
+    return;
+  }
+  render();
+  try{ H = await fetch(`/api/me/hexagon?lang=${LANG}`).then(r => r.json()); }catch{ H = null; }
+  if(H?.available && !H.tiers[hx.tier]) hx.tier = "SILVER";
+  renderHex();
+})();
+</script>
+</body>
+</html>

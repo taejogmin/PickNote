@@ -1,0 +1,1043 @@
+{
+ "version": "16.21.1",
+ "champions": {
+  "266": {
+   "name": "아트록스",
+   "en": "Aatrox",
+   "image": "Aatrox",
+   "chosung": "ㅇㅌㄹㅅ"
+  },
+  "103": {
+   "name": "아리",
+   "en": "Ahri",
+   "image": "Ahri",
+   "chosung": "ㅇㄹ"
+  },
+  "84": {
+   "name": "아칼리",
+   "en": "Akali",
+   "image": "Akali",
+   "chosung": "ㅇㅋㄹ"
+  },
+  "166": {
+   "name": "아크샨",
+   "en": "Akshan",
+   "image": "Akshan",
+   "chosung": "ㅇㅋㅅ"
+  },
+  "12": {
+   "name": "알리스타",
+   "en": "Alistar",
+   "image": "Alistar",
+   "chosung": "ㅇㄹㅅㅌ"
+  },
+  "799": {
+   "name": "암베사",
+   "en": "Ambessa",
+   "image": "Ambessa",
+   "chosung": "ㅇㅂㅅ"
+  },
+  "32": {
+   "name": "아무무",
+   "en": "Amumu",
+   "image": "Amumu",
+   "chosung": "ㅇㅁㅁ"
+  },
+  "34": {
+   "name": "애니비아",
+   "en": "Anivia",
+   "image": "Anivia",
+   "chosung": "ㅇㄴㅂㅇ"
+  },
+  "1": {
+   "name": "애니",
+   "en": "Annie",
+   "image": "Annie",
+   "chosung": "ㅇㄴ"
+  },
+  "523": {
+   "name": "아펠리오스",
+   "en": "Aphelios",
+   "image": "Aphelios",
+   "chosung": "ㅇㅍㄹㅇㅅ"
+  },
+  "22": {
+   "name": "애쉬",
+   "en": "Ashe",
+   "image": "Ashe",
+   "chosung": "ㅇㅅ"
+  },
+  "136": {
+   "name": "아우렐리온 솔",
+   "en": "Aurelion Sol",
+   "image": "AurelionSol",
+   "chosung": "ㅇㅇㄹㄹㅇㅅ"
+  },
+  "893": {
+   "name": "오로라",
+   "en": "Aurora",
+   "image": "Aurora",
+   "chosung": "ㅇㄹㄹ"
+  },
+  "268": {
+   "name": "아지르",
+   "en": "Azir",
+   "image": "Azir",
+   "chosung": "ㅇㅈㄹ"
+  },
+  "432": {
+   "name": "바드",
+   "en": "Bard",
+   "image": "Bard",
+   "chosung": "ㅂㄷ"
+  },
+  "200": {
+   "name": "벨베스",
+   "en": "Bel'Veth",
+   "image": "Belveth",
+   "chosung": "ㅂㅂㅅ"
+  },
+  "53": {
+   "name": "블리츠크랭크",
+   "en": "Blitzcrank",
+   "image": "Blitzcrank",
+   "chosung": "ㅂㄹㅊㅋㄹㅋ"
+  },
+  "63": {
+   "name": "브랜드",
+   "en": "Brand",
+   "image": "Brand",
+   "chosung": "ㅂㄹㄷ"
+  },
+  "201": {
+   "name": "브라움",
+   "en": "Braum",
+   "image": "Braum",
+   "chosung": "ㅂㄹㅇ"
+  },
+  "233": {
+   "name": "브라이어",
+   "en": "Briar",
+   "image": "Briar",
+   "chosung": "ㅂㄹㅇㅇ"
+  },
+  "51": {
+   "name": "케이틀린",
+   "en": "Caitlyn",
+   "image": "Caitlyn",
+   "chosung": "ㅋㅇㅌㄹ"
+  },
+  "164": {
+   "name": "카밀",
+   "en": "Camille",
+   "image": "Camille",
+   "chosung": "ㅋㅁ"
+  },
+  "69": {
+   "name": "카시오페아",
+   "en": "Cassiopeia",
+   "image": "Cassiopeia",
+   "chosung": "ㅋㅅㅇㅍㅇ"
+  },
+  "31": {
+   "name": "초가스",
+   "en": "Cho'Gath",
+   "image": "Chogath",
+   "chosung": "ㅊㄱㅅ"
+  },
+  "42": {
+   "name": "코르키",
+   "en": "Corki",
+   "image": "Corki",
+   "chosung": "ㅋㄹㅋ"
+  },
+  "122": {
+   "name": "다리우스",
+   "en": "Darius",
+   "image": "Darius",
+   "chosung": "ㄷㄹㅇㅅ"
+  },
+  "131": {
+   "name": "다이애나",
+   "en": "Diana",
+   "image": "Diana",
+   "chosung": "ㄷㅇㅇㄴ"
+  },
+  "119": {
+   "name": "드레이븐",
+   "en": "Draven",
+   "image": "Draven",
+   "chosung": "ㄷㄹㅇㅂ"
+  },
+  "36": {
+   "name": "문도 박사",
+   "en": "Dr. Mundo",
+   "image": "DrMundo",
+   "chosung": "ㅁㄷㅂㅅ"
+  },
+  "245": {
+   "name": "에코",
+   "en": "Ekko",
+   "image": "Ekko",
+   "chosung": "ㅇㅋ"
+  },
+  "60": {
+   "name": "엘리스",
+   "en": "Elise",
+   "image": "Elise",
+   "chosung": "ㅇㄹㅅ"
+  },
+  "28": {
+   "name": "이블린",
+   "en": "Evelynn",
+   "image": "Evelynn",
+   "chosung": "ㅇㅂㄹ"
+  },
+  "81": {
+   "name": "이즈리얼",
+   "en": "Ezreal",
+   "image": "Ezreal",
+   "chosung": "ㅇㅈㄹㅇ"
+  },
+  "9": {
+   "name": "피들스틱",
+   "en": "Fiddlesticks",
+   "image": "Fiddlesticks",
+   "chosung": "ㅍㄷㅅㅌ"
+  },
+  "114": {
+   "name": "피오라",
+   "en": "Fiora",
+   "image": "Fiora",
+   "chosung": "ㅍㅇㄹ"
+  },
+  "105": {
+   "name": "피즈",
+   "en": "Fizz",
+   "image": "Fizz",
+   "chosung": "ㅍㅈ"
+  },
+  "3": {
+   "name": "갈리오",
+   "en": "Galio",
+   "image": "Galio",
+   "chosung": "ㄱㄹㅇ"
+  },
+  "41": {
+   "name": "갱플랭크",
+   "en": "Gangplank",
+   "image": "Gangplank",
+   "chosung": "ㄱㅍㄹㅋ"
+  },
+  "86": {
+   "name": "가렌",
+   "en": "Garen",
+   "image": "Garen",
+   "chosung": "ㄱㄹ"
+  },
+  "150": {
+   "name": "나르",
+   "en": "Gnar",
+   "image": "Gnar",
+   "chosung": "ㄴㄹ"
+  },
+  "79": {
+   "name": "그라가스",
+   "en": "Gragas",
+   "image": "Gragas",
+   "chosung": "ㄱㄹㄱㅅ"
+  },
+  "104": {
+   "name": "그레이브즈",
+   "en": "Graves",
+   "image": "Graves",
+   "chosung": "ㄱㄹㅇㅂㅈ"
+  },
+  "887": {
+   "name": "그웬",
+   "en": "Gwen",
+   "image": "Gwen",
+   "chosung": "ㄱㅇ"
+  },
+  "120": {
+   "name": "헤카림",
+   "en": "Hecarim",
+   "image": "Hecarim",
+   "chosung": "ㅎㅋㄹ"
+  },
+  "74": {
+   "name": "하이머딩거",
+   "en": "Heimerdinger",
+   "image": "Heimerdinger",
+   "chosung": "ㅎㅇㅁㄷㄱ"
+  },
+  "910": {
+   "name": "흐웨이",
+   "en": "Hwei",
+   "image": "Hwei",
+   "chosung": "ㅎㅇㅇ"
+  },
+  "420": {
+   "name": "일라오이",
+   "en": "Illaoi",
+   "image": "Illaoi",
+   "chosung": "ㅇㄹㅇㅇ"
+  },
+  "39": {
+   "name": "이렐리아",
+   "en": "Irelia",
+   "image": "Irelia",
+   "chosung": "ㅇㄹㄹㅇ"
+  },
+  "427": {
+   "name": "아이번",
+   "en": "Ivern",
+   "image": "Ivern",
+   "chosung": "ㅇㅇㅂ"
+  },
+  "40": {
+   "name": "잔나",
+   "en": "Janna",
+   "image": "Janna",
+   "chosung": "ㅈㄴ"
+  },
+  "59": {
+   "name": "자르반 4세",
+   "en": "Jarvan IV",
+   "image": "JarvanIV",
+   "chosung": "ㅈㄹㅂ4ㅅ"
+  },
+  "24": {
+   "name": "잭스",
+   "en": "Jax",
+   "image": "Jax",
+   "chosung": "ㅈㅅ"
+  },
+  "126": {
+   "name": "제이스",
+   "en": "Jayce",
+   "image": "Jayce",
+   "chosung": "ㅈㅇㅅ"
+  },
+  "202": {
+   "name": "진",
+   "en": "Jhin",
+   "image": "Jhin",
+   "chosung": "ㅈ"
+  },
+  "222": {
+   "name": "징크스",
+   "en": "Jinx",
+   "image": "Jinx",
+   "chosung": "ㅈㅋㅅ"
+  },
+  "145": {
+   "name": "카이사",
+   "en": "Kai'Sa",
+   "image": "Kaisa",
+   "chosung": "ㅋㅇㅅ"
+  },
+  "429": {
+   "name": "칼리스타",
+   "en": "Kalista",
+   "image": "Kalista",
+   "chosung": "ㅋㄹㅅㅌ"
+  },
+  "43": {
+   "name": "카르마",
+   "en": "Karma",
+   "image": "Karma",
+   "chosung": "ㅋㄹㅁ"
+  },
+  "30": {
+   "name": "카서스",
+   "en": "Karthus",
+   "image": "Karthus",
+   "chosung": "ㅋㅅㅅ"
+  },
+  "38": {
+   "name": "카사딘",
+   "en": "Kassadin",
+   "image": "Kassadin",
+   "chosung": "ㅋㅅㄷ"
+  },
+  "55": {
+   "name": "카타리나",
+   "en": "Katarina",
+   "image": "Katarina",
+   "chosung": "ㅋㅌㄹㄴ"
+  },
+  "10": {
+   "name": "케일",
+   "en": "Kayle",
+   "image": "Kayle",
+   "chosung": "ㅋㅇ"
+  },
+  "141": {
+   "name": "케인",
+   "en": "Kayn",
+   "image": "Kayn",
+   "chosung": "ㅋㅇ"
+  },
+  "85": {
+   "name": "케넨",
+   "en": "Kennen",
+   "image": "Kennen",
+   "chosung": "ㅋㄴ"
+  },
+  "121": {
+   "name": "카직스",
+   "en": "Kha'Zix",
+   "image": "Khazix",
+   "chosung": "ㅋㅈㅅ"
+  },
+  "203": {
+   "name": "킨드레드",
+   "en": "Kindred",
+   "image": "Kindred",
+   "chosung": "ㅋㄷㄹㄷ"
+  },
+  "240": {
+   "name": "클레드",
+   "en": "Kled",
+   "image": "Kled",
+   "chosung": "ㅋㄹㄷ"
+  },
+  "96": {
+   "name": "코그모",
+   "en": "Kog'Maw",
+   "image": "KogMaw",
+   "chosung": "ㅋㄱㅁ"
+  },
+  "897": {
+   "name": "크산테",
+   "en": "K'Sante",
+   "image": "KSante",
+   "chosung": "ㅋㅅㅌ"
+  },
+  "7": {
+   "name": "르블랑",
+   "en": "LeBlanc",
+   "image": "Leblanc",
+   "chosung": "ㄹㅂㄹ"
+  },
+  "64": {
+   "name": "리 신",
+   "en": "Lee Sin",
+   "image": "LeeSin",
+   "chosung": "ㄹㅅ"
+  },
+  "89": {
+   "name": "레오나",
+   "en": "Leona",
+   "image": "Leona",
+   "chosung": "ㄹㅇㄴ"
+  },
+  "876": {
+   "name": "릴리아",
+   "en": "Lillia",
+   "image": "Lillia",
+   "chosung": "ㄹㄹㅇ"
+  },
+  "127": {
+   "name": "리산드라",
+   "en": "Lissandra",
+   "image": "Lissandra",
+   "chosung": "ㄹㅅㄷㄹ"
+  },
+  "805": {
+   "name": "로크",
+   "en": "Locke",
+   "image": "Locke",
+   "chosung": "ㄹㅋ"
+  },
+  "236": {
+   "name": "루시안",
+   "en": "Lucian",
+   "image": "Lucian",
+   "chosung": "ㄹㅅㅇ"
+  },
+  "117": {
+   "name": "룰루",
+   "en": "Lulu",
+   "image": "Lulu",
+   "chosung": "ㄹㄹ"
+  },
+  "99": {
+   "name": "럭스",
+   "en": "Lux",
+   "image": "Lux",
+   "chosung": "ㄹㅅ"
+  },
+  "54": {
+   "name": "말파이트",
+   "en": "Malphite",
+   "image": "Malphite",
+   "chosung": "ㅁㅍㅇㅌ"
+  },
+  "90": {
+   "name": "말자하",
+   "en": "Malzahar",
+   "image": "Malzahar",
+   "chosung": "ㅁㅈㅎ"
+  },
+  "57": {
+   "name": "마오카이",
+   "en": "Maokai",
+   "image": "Maokai",
+   "chosung": "ㅁㅇㅋㅇ"
+  },
+  "11": {
+   "name": "마스터 이",
+   "en": "Master Yi",
+   "image": "MasterYi",
+   "chosung": "ㅁㅅㅌㅇ"
+  },
+  "800": {
+   "name": "멜",
+   "en": "Mel",
+   "image": "Mel",
+   "chosung": "ㅁ"
+  },
+  "902": {
+   "name": "밀리오",
+   "en": "Milio",
+   "image": "Milio",
+   "chosung": "ㅁㄹㅇ"
+  },
+  "21": {
+   "name": "미스 포츈",
+   "en": "Miss Fortune",
+   "image": "MissFortune",
+   "chosung": "ㅁㅅㅍㅊ"
+  },
+  "62": {
+   "name": "오공",
+   "en": "Wukong",
+   "image": "MonkeyKing",
+   "chosung": "ㅇㄱ"
+  },
+  "82": {
+   "name": "모데카이저",
+   "en": "Mordekaiser",
+   "image": "Mordekaiser",
+   "chosung": "ㅁㄷㅋㅇㅈ"
+  },
+  "25": {
+   "name": "모르가나",
+   "en": "Morgana",
+   "image": "Morgana",
+   "chosung": "ㅁㄹㄱㄴ"
+  },
+  "950": {
+   "name": "나피리",
+   "en": "Naafiri",
+   "image": "Naafiri",
+   "chosung": "ㄴㅍㄹ"
+  },
+  "267": {
+   "name": "나미",
+   "en": "Nami",
+   "image": "Nami",
+   "chosung": "ㄴㅁ"
+  },
+  "75": {
+   "name": "나서스",
+   "en": "Nasus",
+   "image": "Nasus",
+   "chosung": "ㄴㅅㅅ"
+  },
+  "111": {
+   "name": "노틸러스",
+   "en": "Nautilus",
+   "image": "Nautilus",
+   "chosung": "ㄴㅌㄹㅅ"
+  },
+  "518": {
+   "name": "니코",
+   "en": "Neeko",
+   "image": "Neeko",
+   "chosung": "ㄴㅋ"
+  },
+  "76": {
+   "name": "니달리",
+   "en": "Nidalee",
+   "image": "Nidalee",
+   "chosung": "ㄴㄷㄹ"
+  },
+  "895": {
+   "name": "닐라",
+   "en": "Nilah",
+   "image": "Nilah",
+   "chosung": "ㄴㄹ"
+  },
+  "56": {
+   "name": "녹턴",
+   "en": "Nocturne",
+   "image": "Nocturne",
+   "chosung": "ㄴㅌ"
+  },
+  "20": {
+   "name": "누누와 윌럼프",
+   "en": "Nunu & Willump",
+   "image": "Nunu",
+   "chosung": "ㄴㄴㅇㅇㄹㅍ"
+  },
+  "2": {
+   "name": "올라프",
+   "en": "Olaf",
+   "image": "Olaf",
+   "chosung": "ㅇㄹㅍ"
+  },
+  "61": {
+   "name": "오리아나",
+   "en": "Orianna",
+   "image": "Orianna",
+   "chosung": "ㅇㄹㅇㄴ"
+  },
+  "516": {
+   "name": "오른",
+   "en": "Ornn",
+   "image": "Ornn",
+   "chosung": "ㅇㄹ"
+  },
+  "80": {
+   "name": "판테온",
+   "en": "Pantheon",
+   "image": "Pantheon",
+   "chosung": "ㅍㅌㅇ"
+  },
+  "78": {
+   "name": "뽀삐",
+   "en": "Poppy",
+   "image": "Poppy",
+   "chosung": "ㅃㅃ"
+  },
+  "555": {
+   "name": "파이크",
+   "en": "Pyke",
+   "image": "Pyke",
+   "chosung": "ㅍㅇㅋ"
+  },
+  "246": {
+   "name": "키아나",
+   "en": "Qiyana",
+   "image": "Qiyana",
+   "chosung": "ㅋㅇㄴ"
+  },
+  "133": {
+   "name": "퀸",
+   "en": "Quinn",
+   "image": "Quinn",
+   "chosung": "ㅋ"
+  },
+  "497": {
+   "name": "라칸",
+   "en": "Rakan",
+   "image": "Rakan",
+   "chosung": "ㄹㅋ"
+  },
+  "33": {
+   "name": "람머스",
+   "en": "Rammus",
+   "image": "Rammus",
+   "chosung": "ㄹㅁㅅ"
+  },
+  "421": {
+   "name": "렉사이",
+   "en": "Rek'Sai",
+   "image": "RekSai",
+   "chosung": "ㄹㅅㅇ"
+  },
+  "526": {
+   "name": "렐",
+   "en": "Rell",
+   "image": "Rell",
+   "chosung": "ㄹ"
+  },
+  "888": {
+   "name": "레나타 글라스크",
+   "en": "Renata Glasc",
+   "image": "Renata",
+   "chosung": "ㄹㄴㅌㄱㄹㅅㅋ"
+  },
+  "58": {
+   "name": "레넥톤",
+   "en": "Renekton",
+   "image": "Renekton",
+   "chosung": "ㄹㄴㅌ"
+  },
+  "107": {
+   "name": "렝가",
+   "en": "Rengar",
+   "image": "Rengar",
+   "chosung": "ㄹㄱ"
+  },
+  "92": {
+   "name": "리븐",
+   "en": "Riven",
+   "image": "Riven",
+   "chosung": "ㄹㅂ"
+  },
+  "68": {
+   "name": "럼블",
+   "en": "Rumble",
+   "image": "Rumble",
+   "chosung": "ㄹㅂ"
+  },
+  "13": {
+   "name": "라이즈",
+   "en": "Ryze",
+   "image": "Ryze",
+   "chosung": "ㄹㅇㅈ"
+  },
+  "360": {
+   "name": "사미라",
+   "en": "Samira",
+   "image": "Samira",
+   "chosung": "ㅅㅁㄹ"
+  },
+  "113": {
+   "name": "세주아니",
+   "en": "Sejuani",
+   "image": "Sejuani",
+   "chosung": "ㅅㅈㅇㄴ"
+  },
+  "235": {
+   "name": "세나",
+   "en": "Senna",
+   "image": "Senna",
+   "chosung": "ㅅㄴ"
+  },
+  "147": {
+   "name": "세라핀",
+   "en": "Seraphine",
+   "image": "Seraphine",
+   "chosung": "ㅅㄹㅍ"
+  },
+  "875": {
+   "name": "세트",
+   "en": "Sett",
+   "image": "Sett",
+   "chosung": "ㅅㅌ"
+  },
+  "35": {
+   "name": "샤코",
+   "en": "Shaco",
+   "image": "Shaco",
+   "chosung": "ㅅㅋ"
+  },
+  "98": {
+   "name": "쉔",
+   "en": "Shen",
+   "image": "Shen",
+   "chosung": "ㅅ"
+  },
+  "102": {
+   "name": "쉬바나",
+   "en": "Shyvana",
+   "image": "Shyvana",
+   "chosung": "ㅅㅂㄴ"
+  },
+  "27": {
+   "name": "신지드",
+   "en": "Singed",
+   "image": "Singed",
+   "chosung": "ㅅㅈㄷ"
+  },
+  "14": {
+   "name": "사이온",
+   "en": "Sion",
+   "image": "Sion",
+   "chosung": "ㅅㅇㅇ"
+  },
+  "15": {
+   "name": "시비르",
+   "en": "Sivir",
+   "image": "Sivir",
+   "chosung": "ㅅㅂㄹ"
+  },
+  "72": {
+   "name": "스카너",
+   "en": "Skarner",
+   "image": "Skarner",
+   "chosung": "ㅅㅋㄴ"
+  },
+  "901": {
+   "name": "스몰더",
+   "en": "Smolder",
+   "image": "Smolder",
+   "chosung": "ㅅㅁㄷ"
+  },
+  "37": {
+   "name": "소나",
+   "en": "Sona",
+   "image": "Sona",
+   "chosung": "ㅅㄴ"
+  },
+  "16": {
+   "name": "소라카",
+   "en": "Soraka",
+   "image": "Soraka",
+   "chosung": "ㅅㄹㅋ"
+  },
+  "50": {
+   "name": "스웨인",
+   "en": "Swain",
+   "image": "Swain",
+   "chosung": "ㅅㅇㅇ"
+  },
+  "517": {
+   "name": "사일러스",
+   "en": "Sylas",
+   "image": "Sylas",
+   "chosung": "ㅅㅇㄹㅅ"
+  },
+  "134": {
+   "name": "신드라",
+   "en": "Syndra",
+   "image": "Syndra",
+   "chosung": "ㅅㄷㄹ"
+  },
+  "223": {
+   "name": "탐 켄치",
+   "en": "Tahm Kench",
+   "image": "TahmKench",
+   "chosung": "ㅌㅋㅊ"
+  },
+  "163": {
+   "name": "탈리야",
+   "en": "Taliyah",
+   "image": "Taliyah",
+   "chosung": "ㅌㄹㅇ"
+  },
+  "91": {
+   "name": "탈론",
+   "en": "Talon",
+   "image": "Talon",
+   "chosung": "ㅌㄹ"
+  },
+  "44": {
+   "name": "타릭",
+   "en": "Taric",
+   "image": "Taric",
+   "chosung": "ㅌㄹ"
+  },
+  "17": {
+   "name": "티모",
+   "en": "Teemo",
+   "image": "Teemo",
+   "chosung": "ㅌㅁ"
+  },
+  "412": {
+   "name": "쓰레쉬",
+   "en": "Thresh",
+   "image": "Thresh",
+   "chosung": "ㅆㄹㅅ"
+  },
+  "18": {
+   "name": "트리스타나",
+   "en": "Tristana",
+   "image": "Tristana",
+   "chosung": "ㅌㄹㅅㅌㄴ"
+  },
+  "48": {
+   "name": "트런들",
+   "en": "Trundle",
+   "image": "Trundle",
+   "chosung": "ㅌㄹㄷ"
+  },
+  "23": {
+   "name": "트린다미어",
+   "en": "Tryndamere",
+   "image": "Tryndamere",
+   "chosung": "ㅌㄹㄷㅁㅇ"
+  },
+  "4": {
+   "name": "트위스티드 페이트",
+   "en": "Twisted Fate",
+   "image": "TwistedFate",
+   "chosung": "ㅌㅇㅅㅌㄷㅍㅇㅌ"
+  },
+  "29": {
+   "name": "트위치",
+   "en": "Twitch",
+   "image": "Twitch",
+   "chosung": "ㅌㅇㅊ"
+  },
+  "77": {
+   "name": "우디르",
+   "en": "Udyr",
+   "image": "Udyr",
+   "chosung": "ㅇㄷㄹ"
+  },
+  "6": {
+   "name": "우르곳",
+   "en": "Urgot",
+   "image": "Urgot",
+   "chosung": "ㅇㄹㄱ"
+  },
+  "110": {
+   "name": "바루스",
+   "en": "Varus",
+   "image": "Varus",
+   "chosung": "ㅂㄹㅅ"
+  },
+  "67": {
+   "name": "베인",
+   "en": "Vayne",
+   "image": "Vayne",
+   "chosung": "ㅂㅇ"
+  },
+  "45": {
+   "name": "베이가",
+   "en": "Veigar",
+   "image": "Veigar",
+   "chosung": "ㅂㅇㄱ"
+  },
+  "161": {
+   "name": "벨코즈",
+   "en": "Vel'Koz",
+   "image": "Velkoz",
+   "chosung": "ㅂㅋㅈ"
+  },
+  "711": {
+   "name": "벡스",
+   "en": "Vex",
+   "image": "Vex",
+   "chosung": "ㅂㅅ"
+  },
+  "254": {
+   "name": "바이",
+   "en": "Vi",
+   "image": "Vi",
+   "chosung": "ㅂㅇ"
+  },
+  "234": {
+   "name": "비에고",
+   "en": "Viego",
+   "image": "Viego",
+   "chosung": "ㅂㅇㄱ"
+  },
+  "112": {
+   "name": "빅토르",
+   "en": "Viktor",
+   "image": "Viktor",
+   "chosung": "ㅂㅌㄹ"
+  },
+  "8": {
+   "name": "블라디미르",
+   "en": "Vladimir",
+   "image": "Vladimir",
+   "chosung": "ㅂㄹㄷㅁㄹ"
+  },
+  "106": {
+   "name": "볼리베어",
+   "en": "Volibear",
+   "image": "Volibear",
+   "chosung": "ㅂㄹㅂㅇ"
+  },
+  "19": {
+   "name": "워윅",
+   "en": "Warwick",
+   "image": "Warwick",
+   "chosung": "ㅇㅇ"
+  },
+  "498": {
+   "name": "자야",
+   "en": "Xayah",
+   "image": "Xayah",
+   "chosung": "ㅈㅇ"
+  },
+  "101": {
+   "name": "제라스",
+   "en": "Xerath",
+   "image": "Xerath",
+   "chosung": "ㅈㄹㅅ"
+  },
+  "5": {
+   "name": "신 짜오",
+   "en": "Xin Zhao",
+   "image": "XinZhao",
+   "chosung": "ㅅㅉㅇ"
+  },
+  "157": {
+   "name": "야스오",
+   "en": "Yasuo",
+   "image": "Yasuo",
+   "chosung": "ㅇㅅㅇ"
+  },
+  "777": {
+   "name": "요네",
+   "en": "Yone",
+   "image": "Yone",
+   "chosung": "ㅇㄴ"
+  },
+  "83": {
+   "name": "요릭",
+   "en": "Yorick",
+   "image": "Yorick",
+   "chosung": "ㅇㄹ"
+  },
+  "804": {
+   "name": "유나라",
+   "en": "Yunara",
+   "image": "Yunara",
+   "chosung": "ㅇㄴㄹ"
+  },
+  "350": {
+   "name": "유미",
+   "en": "Yuumi",
+   "image": "Yuumi",
+   "chosung": "ㅇㅁ"
+  },
+  "904": {
+   "name": "자헨",
+   "en": "Zaahen",
+   "image": "Zaahen",
+   "chosung": "ㅈㅎ"
+  },
+  "154": {
+   "name": "자크",
+   "en": "Zac",
+   "image": "Zac",
+   "chosung": "ㅈㅋ"
+  },
+  "238": {
+   "name": "제드",
+   "en": "Zed",
+   "image": "Zed",
+   "chosung": "ㅈㄷ"
+  },
+  "221": {
+   "name": "제리",
+   "en": "Zeri",
+   "image": "Zeri",
+   "chosung": "ㅈㄹ"
+  },
+  "115": {
+   "name": "직스",
+   "en": "Ziggs",
+   "image": "Ziggs",
+   "chosung": "ㅈㅅ"
+  },
+  "26": {
+   "name": "질리언",
+   "en": "Zilean",
+   "image": "Zilean",
+   "chosung": "ㅈㄹㅇ"
+  },
+  "142": {
+   "name": "조이",
+   "en": "Zoe",
+   "image": "Zoe",
+   "chosung": "ㅈㅇ"
+  },
+  "143": {
+   "name": "자이라",
+   "en": "Zyra",
+   "image": "Zyra",
+   "chosung": "ㅈㅇㄹ"
+  }
+ }
+}

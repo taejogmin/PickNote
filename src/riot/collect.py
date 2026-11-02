@@ -16,7 +16,7 @@ import time
 
 from src.data.store import connect, counts
 from src.i18n import L
-from src.riot.client import RiotClient
+from src.riot.client import RiotClient, StalePuuid
 
 TIERS = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM"]
 # 고티어는 실험용. `run --tiers apex`로만 모은다.
@@ -139,9 +139,18 @@ def scrape_ids(client: RiotClient, conn, limit: int, days: int, per_player: int,
 
     new_ids = 0
     for seed in seeds:
-        ids = client.match_ids(
-            seed["puuid"], count=per_player, start_time=start_time
-        )
+        try:
+            ids = client.match_ids(
+                seed["puuid"], count=per_player, start_time=start_time
+            )
+        except StalePuuid:
+            # 키를 바꾸면 남은 씨앗이 전부 못 쓰게 된다. 하나씩 실패시키지 말고
+            # 한꺼번에 버린다. 다음 바퀴에 씨앗이 비었으니 새 키로 다시 받는다.
+            print(L("\n씨앗이 예전 API 키로 받은 것이라 쓸 수 없습니다 — 버리고 새 키로 다시 모읍니다.",
+                    "\nThese seed players came from an old API key and can't be used — dropping them and fetching new ones."), flush=True)
+            conn.execute("UPDATE seed_player SET scraped_at = ? WHERE scraped_at IS NULL", (int(time.time()),))
+            conn.commit()
+            return new_ids
         if ids:
             cur = conn.executemany(
                 "INSERT OR IGNORE INTO match_queue(match_id, tier) VALUES (?,?)",

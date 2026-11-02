@@ -56,6 +56,10 @@ class RateLimitError(RuntimeError):
     pass
 
 
+class StalePuuid(RateLimitError):
+    """다른 키로 받은 puuid. puuid는 키(앱)마다 다르게 암호화돼 키를 바꾸면 못 쓴다."""
+
+
 class RiotClient:
     # (요청 수, 초). 개발용 키 실제 한도는 20/1s, 100/120s.
     # 여러 프로세스가 같은 키를 쓰거나 시계가 어긋날 때를 대비해 낮춰 잡았다.
@@ -194,6 +198,8 @@ class RiotClient:
                 time.sleep(2**attempt)
                 attempt += 1
                 continue
+            if code == 400 and "decrypting" in response.text:
+                raise StalePuuid(response.text[:200])
             raise RateLimitError(f"예상 못 한 응답 {code}: {response.text[:200]}")
 
         raise RateLimitError(f"{retries}번 시도했지만 실패: {url}")

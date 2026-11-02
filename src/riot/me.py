@@ -33,7 +33,7 @@ from pathlib import Path
 
 from src import region as rg
 from src.i18n import L
-from src.riot.client import RiotClient
+from src.riot.client import RiotClient, StalePuuid
 
 try:
     sys.stdout.reconfigure(errors="replace")
@@ -102,6 +102,31 @@ def accounts(conn) -> list[tuple[str, str]]:
 def account_servers(conn) -> dict[str, str]:
     """puuid → 서버."""
     return dict(conn.execute("SELECT puuid, server FROM account"))
+
+
+def rekey(conn, old: str, new: str) -> None:
+    """같은 계정의 puuid를 바꾼다. puuid는 API 키(앱)마다 달라서 키를 바꾸면 새로 받아야 한다."""
+    if old == new:
+        return
+    if conn.execute("SELECT 1 FROM account WHERE puuid = ?", (old,)).fetchone():
+        conn.execute("DELETE FROM account WHERE puuid = ?", (new,))
+        conn.execute("UPDATE account SET puuid = ? WHERE puuid = ?", (new, old))
+    conn.execute("UPDATE my_match SET account = ? WHERE account = ?", (new, old))
+    if get_me(conn, "puuid") == old:
+        set_me(conn, "puuid", new)
+    conn.commit()
+
+
+def refresh_puuid(conn, client: RiotClient, puuid: str, riot_id: str) -> str:
+    """예전 키로 받은 puuid를 Riot ID로 다시 찾아 바꾼다."""
+    name, _, tag = riot_id.rpartition("#")
+    account = client.account_by_riot_id(name, tag) if name else None
+    if not account or not account.get("puuid"):
+        raise SystemExit(L(f"{riot_id} 계정을 다시 찾지 못했습니다. Riot ID가 바뀌었다면 my_accounts.txt 를 고쳐 주세요.",
+                           f"Couldn't look up {riot_id} again. If the Riot ID changed, fix it in my_accounts.txt."))
+    print(L("  API 키가 바뀌어 계정 ID를 새로 받았습니다.", "  The API key changed, so the account ID was looked up again."))
+    rekey(conn, puuid, account["puuid"])
+    return account["puuid"]
 
 
 def get_me(conn, key: str) -> str | None:
@@ -232,6 +257,9 @@ def cmd_fetch(args) -> None:
                            f"Couldn't find the account {args.riot_id}. Check the name and tag."))
     puuid = account["puuid"]
     riot_id = f"{account.get('gameName', name)}#{account.get('tagLine', tag)}"
+    for old, known in accounts(conn):            # 같은 계정을 예전 키로 받아 둔 적이 있으면 이어 붙인다
+        if known.lower() == riot_id.lower():
+            rekey(conn, old, puuid)
     if not get_me(conn, "puuid"):                 # 첫 계정 — 화면 맨 위 이름
         set_me(conn, "puuid", puuid)
         set_me(conn, "riot_id", riot_id)
@@ -265,7 +293,11 @@ def cmd_update(_args) -> None:
         last = conn.execute("SELECT MAX(created_ms) FROM my_match WHERE account = ?", (puuid,)).fetchone()[0]
         since = int(last / 1000) - 3600 if last else None     # 겹치게 한 시간 앞에서부터
         print(riot_id)
-        n = pull(conn, client, puuid, get_me(conn, "salt"), since_s=since)
+        try:
+            n = pull(conn, client, puuid, get_me(conn, "salt"), since_s=since)
+        except StalePuuid:
+            puuid = refresh_puuid(conn, client, puuid, riot_id)
+            n = pull(conn, client, puuid, get_me(conn, "salt"), since_s=since)
         print(L(f"  새 경기 {n:,}개 저장", f"  Saved {n:,} new games"))
     # 승패 육각형의 라인전 축 — 새 판 수만큼이라 수집기와 같이 돌아도 된다
     from src.riot.benchmark import my_timelines

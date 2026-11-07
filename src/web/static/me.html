@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PickNote</title>
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg">
 <script src="/static/i18n.js"></script>
 <style>
   :root{
@@ -19,6 +20,10 @@
   header{display:flex;align-items:center;gap:14px;padding:11px 20px;
     border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
   h1{font-size:16px;margin:0;font-weight:650;white-space:nowrap}
+  h1.sub-title{color:var(--dim);font-weight:500;padding-left:14px;border-left:1px solid var(--line)}
+  .logo{display:flex;align-items:center;gap:7px;color:var(--text);text-decoration:none;font-size:16px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;margin:0}
+  .logo img{width:20px;height:20px;display:block}
+  .logo em{font-style:normal;color:var(--gold)}
   header .id{color:var(--dim);font-size:13px}
   header .back{margin-left:auto;border:1px solid var(--line);border-radius:7px;padding:5px 11px;
     color:var(--dim);font-size:13px;text-decoration:none;white-space:nowrap}
@@ -32,8 +37,8 @@
   section .sub{color:var(--faint);font-size:11.5px;margin:0 0 10px}
 
   /* 맨 위 숫자 */
-  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-  @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .stats{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:10px}
+  @media (max-width:640px){.stats{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}}
   .stat{background:var(--panel2);border-radius:10px;padding:10px 12px}
   .stat .k{color:var(--faint);font-size:11.5px}
   .stat .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
@@ -63,6 +68,9 @@
   .diff .seg.pos{background:var(--good)} .diff .seg.neg{background:var(--bad)}
   .diff span{width:44px;text-align:right}
   @media (max-width:640px){td.diffcell{width:auto} .diff .track{display:none}}
+  section:not(.wide):has(td.kda) .diff .track{width:40px;flex-basis:40px}   /* 반쪽 표에 KDA가 들어가면 막대를 줄인다 */
+  td.kda b{font-weight:600} td.kda small{display:block;color:var(--faint);font-size:11px;margin-top:1px}
+  @media (max-width:640px){td.kda small+small{display:none} th,td{padding-left:5px;padding-right:5px}}   /* 좁은 화면에서는 합을 빼고 칸을 좁힌다 */
 
   /* 달별 */
   .months svg{display:block;width:100%;height:auto}
@@ -113,7 +121,8 @@
 </head>
 <body>
 <header>
-  <h1 data-en="My record">내 기록</h1>
+  <a class="logo" href="/" title="PickNote"><img src="/static/logo.svg" alt=""><span>Pick<em>Note</em></span></a>
+  <h1 class="sub-title" data-en="My record">내 기록</h1>
   <span class="id" id="rid"></span>
   <a class="back" href="/" data-en="Back to picks">추천 화면으로</a>
 </header>
@@ -144,9 +153,13 @@ function diffCell(v){
     <div class="track"><i class="seg ${sign(v)}" style="left:${left}%;width:${w}%"></i></div>
     <span class="${sign(v)}">${v > 0 ? "+" : ""}${v.toFixed(1)}</span></div></td>`;
 }
-const cols = r => `<td>${r.games}</td><td class="${r.games >= THIN ? sign(r.winrate - 50) : ""}">${pct(r.winrate)}</td>`
-  + (D.hasModel ? `<td>${pct(r.expected)}</td>${diffCell(r.diff)}` : "");
-const head = first => `<tr><th>${first}</th><th>${L("판", "Games")}</th><th>${L("승률", "Win rate")}</th>`
+/** KDA — (킬+어시) ÷ 데스, 데스가 0이면 Perfect. 합 [k, d, a]과 판 수로 평균도 */
+const kdaRatio = ([k, d, a]) => d ? ((k + a) / d).toFixed(2) : "Perfect";
+const kdaAvg = ([k, d, a], n) => [k, d, a].map(x => (x / n).toFixed(1)).join(" / ");
+const kdaCell = r => `<td class="kda"><b>KDA ${kdaRatio(r.kda)}</b><small>${L("평균", "Avg")} ${kdaAvg(r.kda, r.games)}</small><small>${L("합", "Total")} ${r.kda.join(" / ")}</small></td>`;
+const cols = (r, kda) => `<td>${r.games}</td><td class="${r.games >= THIN ? sign(r.winrate - 50) : ""}">${pct(r.winrate)}</td>`
+  + (kda ? kdaCell(r) : "") + (D.hasModel ? `<td>${pct(r.expected)}</td>${diffCell(r.diff)}` : "");
+const head = (first, kda) => `<tr><th>${first}</th><th>${L("판", "Games")}</th><th>${L("승률", "Win rate")}</th>` + (kda ? `<th>KDA</th>` : "")
   + (D.hasModel ? `<th>${L("조합 기대", "Draft exp.")}</th><th>${L("내 몫 (%p)", "Your edge (pp)")}</th>` : "") + `</tr>`;
 const thin = r => r.games < THIN ? "thin" : "";
 
@@ -180,6 +193,7 @@ function render(){
     <div class="stats">
       <div class="stat"><div class="k">${L("판 수", "Games")}</div><div class="v">${a.games}</div><div class="s">${esc(D.remakeNote)}</div></div>
       <div class="stat"><div class="k">${L("승률", "Win rate")}</div><div class="v ${sign(a.winrate - 50)}">${pct(a.winrate)}</div><div class="s">${L("솔로랭크 · 자유랭크", "Solo/Duo · Flex")}</div></div>
+      <div class="stat"><div class="k">KDA</div><div class="v">${kdaRatio(a.kda)}</div><div class="s">${L("평균", "Avg")} ${kdaAvg(a.kda, a.games)} · ${L("합", "Total")} ${a.kda.join("/")}</div></div>
       ${D.hasModel ? `
       <div class="stat"><div class="k">${L("조합 기대", "Draft expectation")}</div><div class="v">${pct(a.expected)}</div><div class="s">${L("평균 실력이었다면", "At average skill")}</div></div>
       <div class="stat"><div class="k">${L("내 몫", "Your edge")}</div><div class="v ${sign(a.diff)}">${a.diff > 0 ? "+" : ""}${a.diff.toFixed(1)}${PP}</div><div class="s">${L("실제 − 조합 기대", "Actual − draft expectation")}</div></div>` : ""}
@@ -194,14 +208,14 @@ function render(){
 
   // 계정이 둘 이상일 때만 — 계정마다 붙는 상대 수준이 다를 수 있어 따로도 본다
   if(D.accounts?.length) html.push(`<section class="wide"><h2>${L("계정별", "By account")}</h2><div class="sub">${L("위 숫자는 전부 합친 것 · 계정마다 만나는 상대 수준이 다를 수 있습니다", "The numbers above combine all accounts · each account may face a different level of opponents")}</div>
-    <div class="tw"><table>${head(L("계정", "Account"))}${D.accounts.map(r =>
-      `<tr class="${thin(r)}"><td>${esc(r.riotId)}</td>${cols(r)}</tr>`).join("")}</table></div></section>`);
+    <div class="tw"><table>${head(L("계정", "Account"), true)}${D.accounts.map(r =>
+      `<tr class="${thin(r)}"><td>${esc(r.riotId)}</td>${cols(r, true)}</tr>`).join("")}</table></div></section>`);
 
   html.push(`<section class="wide" id="hex" hidden></section>`);
 
   html.push(`<section><h2>${L("포지션", "Position")}</h2><div class="sub">${L("어느 자리에서 내 몫이 나오나", "Where your edge comes from")}</div>
-    <div class="tw"><table>${head(L("포지션", "Position"))}${pos.map(r =>
-      `<tr class="${thin(r)}"><td>${POS_KO[r.position] ?? r.position}</td>${cols(r)}</tr>`).join("")}</table></div></section>`);
+    <div class="tw"><table>${head(L("포지션", "Position"), true)}${pos.map(r =>
+      `<tr class="${thin(r)}"><td>${POS_KO[r.position] ?? r.position}</td>${cols(r, true)}</tr>`).join("")}</table></div></section>`);
 
   html.push(`<section><h2>${L("경기 길이별", "By game length")}</h2><div class="sub">${L(`"그 길이까지 갔을 때" 이긴 비율`, `Win rate in games that lasted that long`)}</div>
     <div class="tw"><table>${head(L("길이", "Length"))}${D.duration.map(r =>
@@ -209,9 +223,9 @@ function render(){
 
   const rest = D.rest;
   html.push(`<section class="wide"><h2>${L("챔피언", "Champions")}</h2><div class="sub">${L("그 자리에서 3판 이상 · 판 수 순", "3+ games in that position · by games played")}</div>
-    <div class="tw"><table>${head(L("챔피언", "Champion"))}${D.champions.map(r =>
-      `<tr class="${thin(r)}"><td>${champCell(r.championId, POS_KO[r.position] ?? "")}</td>${cols(r)}</tr>`).join("")}
-      ${rest.games ? `<tr class="rest"><td>${L(`나머지 ${rest.champions}개 (각 1~2판)`, `${rest.champions} others (1–2 games each)`)}</td>${cols(rest)}</tr>` : ""}
+    <div class="tw"><table>${head(L("챔피언", "Champion"), true)}${D.champions.map(r =>
+      `<tr class="${thin(r)}"><td>${champCell(r.championId, POS_KO[r.position] ?? "")}</td>${cols(r, true)}</tr>`).join("")}
+      ${rest.games ? `<tr class="rest"><td>${L(`나머지 ${rest.champions}개 (각 1~2판)`, `${rest.champions} others (1–2 games each)`)}</td>${cols(rest, true)}</tr>` : ""}
     </table></div></section>`);
 
   html.push(`<section class="wide months"><h2>${L("달별", "By month")}</h2><div class="sub">${L(`막대는 판 수, 위 숫자는 그달 승률 (${THIN}판 미만은 회색)`, `Bars are games played, numbers above are that month's win rate (gray under ${THIN} games)`)}</div>

@@ -47,6 +47,7 @@ class Game:
     account: str = ""                            # 어느 내 계정의 판인가
     season: str = ""                             # 패치 앞자리 ("16")
     duel: dict | None = None                     # 나와 맞은편의 숫자 — 솔로랭크 15분 넘은 판만
+    kda: tuple = (0, 0, 0)                       # 내 킬 · 데스 · 어시스트
 
     @property
     def foe(self) -> int | None:
@@ -100,6 +101,7 @@ def _load() -> None:
             team, where = p.get("teamId"), p.get("teamPosition") or ""
             if "puuid" in p:                     # 신원이 남아 있는 건 나뿐이다 (me.py가 지웠다)
                 g.team = team
+                g.kda = (int(p.get("kills", 0)), int(p.get("deaths", 0)), int(p.get("assists", 0)))
             if where in POSITIONS:
                 g.lineup.setdefault(team, {})[where] = int(p.get("championId", 0))
             if p.get("mate"):
@@ -306,7 +308,7 @@ def summary(rec=None, lang: str | None = None) -> dict:
     def block(idx: list[int]) -> dict:
         n = len(idx)
         w = sum(gs[i].win for i in idx)
-        out = {"games": n, "winrate": _pct(w, n)}
+        out = {"games": n, "winrate": _pct(w, n), "kda": [sum(gs[i].kda[j] for i in idx) for j in range(3)]}
         valid = [i for i in idx if ok[i]]
         if valid:
             exp = float(np.mean(expect[valid])) * 100

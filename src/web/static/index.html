@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PickNote</title>
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg">
 <script src="/static/i18n.js"></script>
 <style>
   :root{
@@ -26,6 +27,9 @@
   header{display:flex;align-items:center;gap:14px;padding:11px 20px;
     border-bottom:1px solid var(--line);background:var(--panel)}
   h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+  .logo{display:flex;align-items:center;gap:7px;color:var(--text);text-decoration:none;font-size:16px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;margin:0}
+  .logo img{width:20px;height:20px;display:block}
+  .logo em{font-style:normal;color:var(--gold)}
   /* 라인 버튼은 줄이지 않는다 — 좁아지면 글자가 세로로 깨진다. 좁아지는 건 모델 설명 쪽이다 */
   .roles{display:flex;gap:4px;background:var(--panel2);padding:3px;border-radius:8px;flex:0 0 auto}
   .roles button{padding:5px 12px;border-radius:6px;color:var(--dim);font-size:13px;white-space:nowrap}
@@ -265,7 +269,7 @@
 <body>
 
 <header>
-  <h1>PickNote</h1>
+  <h1 class="logo"><img src="/static/logo.svg" alt=""><span>Pick<em>Note</em></span></h1>
   <div class="roles" id="roles"></div>
   <!-- 티어 보정. 아이언에만 차이값이 있어서 다섯 칸 드롭다운이
        아니라 한 칸으로 묻는다. 모델에 보정이 없으면 서버가 ironOnly를 false로 주고 이 칸은 숨는다. -->

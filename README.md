@@ -8,7 +8,7 @@ It's built to run on your own PC — don't run it on shared or public computers,
 While you're in champion select, it reads the draft from your client and shows which champions
 give your team the best win rate in your role — and *why* (champion strength, synergy with allies, counters against enemies).
 
-- Learned from about **1.7 million real KR ranked games** (Iron–Platinum, patches 16.15–16.21), not a tier list
+- Learned from about **2.6 million real KR ranked games** (Iron–Platinum, patches 16.15–16.22), not a tier list
 - Works with a **partial draft** — first pick, one enemy revealed, anything in between
 - Reads the client **read-only**. It never picks or bans for you, and doesn't touch spells or runes
 - Korean / English UI

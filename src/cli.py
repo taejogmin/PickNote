@@ -270,18 +270,31 @@ def cmd_open(_args) -> None:
   Address: {url}
   Press Ctrl+C in this window to stop
 """))
-    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "src.web.app:app", "--port", str(PORT)], cwd=ROOT)
-    for _ in range(60):
-        if port_open():
-            webbrowser.open(url)
-            break
-        if server.poll() is not None:
-            break
-        time.sleep(0.5)
-    try:
-        server.wait()
-    except KeyboardInterrupt:
-        server.terminate()
+    # 어떤 PC에서는 VPN·보안 프로그램 탓에 파이썬 내부 소켓이 가끔 WinError 10014로 실패해
+    # 서버가 켜지자마자 꺼진다. 그럴 땐 다섯 번까지 다시 켠다.
+    opened = False
+    for attempt in range(1, 6):
+        started = time.monotonic()
+        server = subprocess.Popen([sys.executable, "-m", "uvicorn", "src.web.app:app", "--port", str(PORT)], cwd=ROOT)
+        try:
+            for _ in range(60):
+                if port_open():
+                    if not opened:
+                        webbrowser.open(url)
+                        opened = True
+                    break
+                if server.poll() is not None:
+                    break
+                time.sleep(0.5)
+            code = server.wait()
+        except KeyboardInterrupt:
+            server.terminate()
+            return
+        if code == 0 or attempt == 5 or time.monotonic() - started > 30:
+            return
+        print(L(f"  서버가 바로 꺼져서 다시 켭니다 ({attempt}/5)...",
+                f"  The server stopped right away — restarting ({attempt}/5)..."), flush=True)
+        time.sleep(1)
 
 
 def read_accounts() -> list[tuple[str, str]]:
@@ -390,6 +403,43 @@ def apply_release(rel: dict) -> None:
             shutil.copyfile(src, dest)
 
 
+def pull_official_model() -> None:
+    """이 버전에 들어 있는 한국 모델이 내 모델보다 많은 경기로 학습됐으면 바꿔 끼운다.
+    apply_release는 models/를 건드리지 않으니, 새 버전이 모델을 새로 실어 와도 여기서 받아야 한다.
+    내가 학습한 모델이 더 많은 경기를 봤으면 그대로 둔다. 바꿀 땐 옛 모델을 draft.prev.* 로 남긴다."""
+    base = f"https://raw.githubusercontent.com/{REPO}/v{version()}/models/"
+    local_dir = rg.model_dir(rg.DEFAULT)
+    try:
+        theirs = requests.get(base + "draft.json", timeout=30)
+        theirs.raise_for_status()
+        meta = theirs.json()
+    except (requests.RequestException, ValueError):
+        print(L("  공식 모델을 확인하지 못했습니다. 건너뜁니다.", "  Couldn't check the official model. Skipping."))
+        return
+    try:
+        mine = json.loads((local_dir / "draft.json").read_text(encoding="utf-8")).get("matches", 0)
+    except (OSError, ValueError):
+        mine = 0
+    if meta.get("matches", 0) <= mine:
+        print(L(f"  지금 모델({mine:,}경기)을 그대로 씁니다.", f"  Keeping your model ({mine:,} games)."))
+        return
+    try:
+        npz = requests.get(base + "draft.npz", timeout=120)
+        npz.raise_for_status()
+    except requests.RequestException:
+        print(L("  공식 모델을 받지 못했습니다. 건너뜁니다.", "  Couldn't download the official model. Skipping."))
+        return
+    local_dir.mkdir(parents=True, exist_ok=True)
+    for ext in ("json", "npz"):
+        cur = local_dir / f"draft.{ext}"
+        if cur.exists():
+            shutil.copyfile(cur, local_dir / f"draft.prev.{ext}")
+    (local_dir / "draft.npz").write_bytes(npz.content)
+    (local_dir / "draft.json").write_bytes(theirs.content)
+    print(L(f"  공식 모델로 바꿨습니다 — {meta['matches']:,}경기 · {meta.get('trained_at', '?')} 학습 (예전 모델은 draft.prev)",
+            f"  Switched to the official model — {meta['matches']:,} games · trained {meta.get('trained_at', '?')} (old one kept as draft.prev)"))
+
+
 def model_meta() -> dict:
     try:
         return json.loads((rg.usable_model_dir() / "draft.json").read_text(encoding="utf-8"))
@@ -476,11 +526,14 @@ def cmd_update(args) -> None:
 
     run_module("src.data.champions")         # 새 챔피언 — 키가 필요 없다
 
-    print(L("\n  [업데이트] 2/3 다시 학습", "\n  [Update] 2/3 Retraining"))
+    print(L("\n  [업데이트] 2/3 모델", "\n  [Update] 2/3 Model"))
+    before = model_meta().get("trained_at")
+    pull_official_model()
     retrain, why = needs_retrain()
     print(f"  {why}")
     if retrain or args.force_train:
         train()
+    if model_meta().get("trained_at") != before:
         if port_open():
             print(L("  화면이 켜져 있으면 3_Open.cmd 창을 닫고 다시 켜야 새 모델을 씁니다.",
                     "  If the app is open, close the 3_Open.cmd window and start it again to load the new model."))

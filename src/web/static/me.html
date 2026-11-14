@@ -94,6 +94,7 @@
   @media (max-width:760px){.hexbody{grid-template-columns:minmax(0,1fr)}}
   .hexbody svg{display:block;width:100%;max-width:380px;height:auto;margin:0 auto;overflow:visible}
   .hexbody svg text{font:600 13px "Pretendard","Malgun Gothic",system-ui,sans-serif;fill:var(--text)}
+  .hexbody svg text.nodata{fill:var(--faint);font-weight:400}
   .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--dim);margin-bottom:4px}
   .legend i{display:inline-block;width:16px;height:0;border-top:2px solid;vertical-align:middle;margin-right:6px}
   .legend i.dash{border-top-style:dashed}
@@ -306,7 +307,8 @@ function absFmt(k, v){
 }
 const wobble = n => Math.round(98 / Math.sqrt(n));    // 앞선 비율 50%일 때 95% 폭
 
-function hexRadar(series){
+/** missing: 내 값이 없는 축 — 회색선 자리에 두고 점을 안 찍는다 (0으로 그리면 크게 뒤진 것처럼 보인다) */
+function hexRadar(series, missing = new Set()){
   const CX = 170, CY = 150, R = 104;
   const pt = (i, v) => { const a = -Math.PI / 2 + i * Math.PI / 3, r = R * v / 100;
     return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
@@ -317,13 +319,16 @@ function hexRadar(series){
     s += `<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--ring)" stroke-width="1"/>`; });
   HEX_AXES.forEach((a, i) => { const [x, y] = pt(i, 119);
     const anchor = Math.abs(x - CX) < 4 ? "middle" : x > CX ? "start" : "end";
-    s += `<text x="${x.toFixed(1)}" y="${(y + 5).toFixed(1)}" text-anchor="${anchor}">${a.n}</text>`; });
+    s += missing.has(a.k)
+      ? `<text class="nodata" x="${x.toFixed(1)}" y="${(y + 5).toFixed(1)}" text-anchor="${anchor}">${a.n} · ${L("자료 없음", "no data")}</text>`
+      : `<text x="${x.toFixed(1)}" y="${(y + 5).toFixed(1)}" text-anchor="${anchor}">${a.n}</text>`; });
   series.forEach(ser => {
     if(ser.fill) s += `<polygon points="${pts(a => ser.vals[a.k])}" fill="var(${ser.color})" fill-opacity=".16"/>`;
     s += `<polygon points="${pts(a => ser.vals[a.k])}" fill="none" stroke="var(${ser.color})" stroke-width="2" stroke-linejoin="round"${ser.dash ? ' stroke-dasharray="5 4"' : ""}/>`;
   });
   const me = series.find(x => !x.dash);
-  HEX_AXES.forEach((a, i) => { const [x, y] = pt(i, me.vals[a.k]);
+  HEX_AXES.forEach((a, i) => { if(missing.has(a.k)) return;
+    const [x, y] = pt(i, me.vals[a.k]);
     s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="var(${me.color})" stroke="var(--panel)" stroke-width="2"/>`
       + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="16" fill="transparent"><title>${a.n} · ${a.u}\n${
         series.map(ser => `${ser.label} ${Math.round(ser.vals[a.k])}%`).join("\n")}</title></circle>`; });
@@ -357,7 +362,8 @@ function renderHex(){
     body = `<div class="locked">${L(`${MODE_KO[hx.mode]} ${n}판 — ${H.minGames}판부터 보여 줍니다`, `${MODE_KO[hx.mode]}: ${n} games — shown from ${H.minGames} games`)}</div>`;
   }else{
     const mine = {}, base = {};
-    HEX_AXES.forEach(a => { mine[a.k] = myLead(sel, a.k) ?? 0; base[a.k] = baseLead(sel, a.k) ?? 50; });
+    const missing = new Set(HEX_AXES.filter(a => myLead(sel, a.k) == null).map(a => a.k));
+    HEX_AXES.forEach(a => { base[a.k] = baseLead(sel, a.k) ?? 50; mine[a.k] = myLead(sel, a.k) ?? base[a.k]; });
     const baseLabel = cInfo ? (hx.mode === "all" ? L(`보통 ${cName}`, `Average ${cName}`) : L(`${tierKo} ${MODE_KO[hx.mode]} 보통 ${cName}`, `Average ${tierKo} ${cName} (${MODE_LC[hx.mode]})`))
       : hx.mode === "all" ? L("맞은편과 동률", "Even with lane opponent") : L(`${tierKo} ${MODE_KO[hx.mode]} 보통`, `Average ${tierKo} (${MODE_LC[hx.mode]})`);
     const baseWobble = cInfo ? L(`<br>회색선도 표본 ${cInfo.n[hx.mode].toLocaleString()}쌍이라 ±${wobble(cInfo.n[hx.mode])}%p 흔들립니다.`,
@@ -365,7 +371,9 @@ function renderHex(){
     const ser = [{label: baseLabel, vals: base, color: "--dim", dash: true},
                  {label: L("나", "You"), vals: mine, color: hx.mode === "loss" ? "--loss" : "--win", fill: true}];
     const w = wobble(n);
-    const gaps = HEX_AXES.map(a => ({a, g: mine[a.k] - base[a.k]})).sort((x, y) => x.g - y.g);
+    const gaps = HEX_AXES.filter(a => !missing.has(a.k)).map(a => ({a, g: mine[a.k] - base[a.k]})).sort((x, y) => x.g - y.g);
+    const noLane = missing.has("gold15") ? `<br>${L("라인전은 15분 타임라인을 아직 못 받아 비워 뒀습니다. 4_MyRecord.cmd 를 다시 실행하면 받아 옵니다.",
+      "Laning is left out because the 15-minute timelines haven't been downloaded yet. Run 4_MyRecord.cmd again to fetch them.")}` : "";
     const row = x => `<div class="${Math.abs(x.g) < w ? "noise" : ""}"><span>${x.a.n}</span>
       <span>${L("나", "You")} ${Math.round(mine[x.a.k])} · ${L("보통", "avg")} ${Math.round(base[x.a.k])} → <b>${x.g >= 0 ? "+" : "−"}${Math.abs(x.g).toFixed(0)}${PP}</b></span></div>`;
     const more = [50, 100].filter(m => m > n).map(m => L(`${m}판이면 ±${wobble(m)}`, `±${wobble(m)} at ${m} games`)).join(", ");
@@ -381,11 +389,11 @@ function renderHex(){
     const behind = gaps.filter(x => Math.round(x.g) < 0).slice(0, 2), ahead = gaps.filter(x => Math.round(x.g) > 0).reverse().slice(0, 2);
     const list = (xs, none) => xs.length ? xs.map(row).join("") : `<div class="noise"><span>${none}</span></div>`;
     body = `<div class="hexbody">
-        <div>${legend}${hexRadar(ser)}</div>
+        <div>${legend}${hexRadar(ser, missing)}</div>
         <div class="gaps"><h3>${L("보통보다 가장 뒤처진 축", "Furthest behind average")}</h3>${list(behind, L("없습니다", "None"))}
           <h3>${L("보통보다 가장 앞선 축", "Furthest ahead of average")}</h3>${list(ahead, L("없습니다", "None"))}
           <div class="wobble"><b>${L(`${n}판 기준 · 축마다 ±${w}%p 흔들릴 수 있습니다`, `Based on ${n} games · each axis can swing ±${w}pp`)}</b>${more ? ` · ${more}` : ""}<br>
-            ${L("흐린 줄은 차이가 흔들림 폭 안이라 아직 우연과 가려지지 않습니다.", "Faded rows are within that margin, so they can't yet be told apart from chance.")}${baseWobble}</div></div>
+            ${L("흐린 줄은 차이가 흔들림 폭 안이라 아직 우연과 가려지지 않습니다.", "Faded rows are within that margin, so they can't yet be told apart from chance.")}${baseWobble}${noLane}</div></div>
       </div>
       <div class="tw" style="margin-top:14px"><table class="hextable">
         <tr><th>${L("지표", "Stat")}</th><th title="${L("앞 숫자: 내 판 중 맞은편 라이너보다 그 값이 좋았던 판의 비율 · 뒤 숫자: 같은 조건의 일반적인 게임에서 그 비율", "First number: share of your games where you beat your lane opponent on this stat · second: the same share in a typical game under the same conditions")}">${L("상대보다 잘했던 게임 /<br>일반적인 게임", "Games ahead of opponent /<br>typical game")}</th><th>${L(`나 · 시즌 ${H.season} ${cur.length}판`, `You · season ${H.season}, ${cur.length} games`)}</th><th>${L(`${cInfo ? `보통 ${cName}` : tierKo}${hx.mode === "all" ? "" : " " + MODE_KO[hx.mode]} 평균`, `${cInfo ? cName : tierKo} avg${hx.mode === "all" ? "" : ` (${MODE_LC[hx.mode]})`}`)}</th></tr>

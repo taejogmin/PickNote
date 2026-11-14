@@ -140,7 +140,8 @@ def people(match: dict, line: dict) -> list[dict] | None:
 def my_timelines(conn, client: RiotClient, limit: int = 0) -> int:
     """아직 없는 내 판 타임라인을 받는다. `python -m src.riot.me update`도 이걸 부른다."""
     conn.executescript(MY_SCHEMA)
-    have = {r[0] for r in conn.execute("SELECT match_id FROM my_timeline")}
+    # 15분 넘은 판만 받으니 빈 칸은 받다가 실패한 것(키 만료·연결 끊김) — 다음에 다시 받는다
+    have = {r[0] for r in conn.execute("SELECT match_id FROM my_timeline WHERE frames IS NOT NULL")}
     ids = [r[0] for r in conn.execute(
         "SELECT match_id FROM my_match WHERE queue = 420 AND duration_s >= ? ORDER BY created_ms DESC",
         (MIN_DURATION_S,)) if r[0] not in have]

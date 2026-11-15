@@ -29,6 +29,8 @@ REMAKE_S = 300          # 5분 안에 끝난 판은 다시하기다 — 세지 �
 POOL_MIN = 5            # 그 자리에서 이만큼 했으면 내 풀
 POOL_MAX = 8
 TAG_MIN = 3             # 추천 줄에 내 기록을 다는 최소 판 수
+FOE_MIN = 3             # 챔피언 줄을 펼쳤을 때 상대 라이너를 따로 세우는 최소 판 수
+FOE_DETAIL_MIN = 5      # 그 상대로 지표(앞선 비율)까지 보이는 최소 판 수 — 이보다 적으면 거의 우연이다
 NO_CORRECTION_TIER = "SILVER"   # 내 티어는 묻지 않는다 — 보정 없는 쪽으로
 
 
@@ -48,6 +50,8 @@ class Game:
     season: str = ""                             # 패치 앞자리 ("16")
     duel: dict | None = None                     # 나와 맞은편의 숫자 — 솔로랭크 15분 넘은 판만
     kda: tuple = (0, 0, 0)                       # 내 킬 · 데스 · 어시스트
+    form: dict | None = None                     # 한눈에 지표 재료 — 솔로랭크 15분 넘고 타임라인 있는 판만
+    gaps: dict | None = None                     # 시간대별 격차 — 맞은편과 CS·골드·경험치 차이, 5분마다
 
     @property
     def foe(self) -> int | None:
@@ -60,17 +64,17 @@ class Game:
         return all(len(self.lineup.get(t, {})) == 5 for t in (100, 200))
 
 
-_cache: dict = {"mtime": None, "games": [], "me": {}, "accounts": []}
+_cache: dict = {"mtime": None, "games": [], "me": {}, "accounts": [], "ranks": []}
 
 
 def _load() -> None:
     if not DB.exists():
-        _cache.update(mtime=None, games=[], me={}, accounts=[])
+        _cache.update(mtime=None, games=[], me={}, accounts=[], ranks=[])
         return
     mtime = DB.stat().st_mtime
     if mtime == _cache["mtime"]:
         return
-    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=30)   # 내 기록 갱신이 쓰는 중이면 기다린다
     try:
         me = dict(conn.execute("SELECT key, value FROM me"))
         try:            # 계정이 하나뿐이던 때 파일 — `python -m src.riot.me`를 한 번 돌리면 바뀐다
@@ -86,6 +90,15 @@ def _load() -> None:
             timelines = dict(conn.execute("SELECT match_id, frames FROM my_timeline"))
         except sqlite3.OperationalError:
             timelines = {}
+        try:            # 5분마다 숫자를 받기 전 파일에는 없다 — 시간대별 격차 칸만 빈다
+            curves = dict(conn.execute("SELECT match_id, curve FROM my_curve WHERE curve IS NOT NULL"))
+        except sqlite3.OperationalError:
+            curves = {}
+        try:            # 티어 기록을 찍기 전 파일에는 없다 — 그래프가 추정만 그린다
+            ranks = conn.execute("SELECT account, ts_ms, queue, tier, division, lp, wins, losses "
+                                 "FROM rank_snapshot ORDER BY ts_ms").fetchall()
+        except sqlite3.OperationalError:
+            ranks = []
     finally:
         conn.close()
     label = dict(accounts)
@@ -107,9 +120,13 @@ def _load() -> None:
             if p.get("mate"):
                 g.mates.append(p["mate"])
         g.duel = _duel(g, info["participants"], timelines.get(match_id))   # 내 팀을 안 뒤에
+        g.form = _form(g, info["participants"], timelines.get(match_id))
+        g.gaps = _gaps(g, info["participants"], curves.get(match_id))
         if g.team:
             games.append(g)
-    _cache.update(mtime=mtime, games=games, me=me, accounts=[r for _p, r in accounts])
+    ranks = [{"a": label.get(a, ""), "t": t, "q": q, "tier": tier, "div": div, "lp": lp, "wins": w, "losses": l}
+             for a, t, q, tier, div, lp, w, l in ranks if a in label]
+    _cache.update(mtime=mtime, games=games, me=me, accounts=[r for _p, r in accounts], ranks=ranks)
 
 
 def games() -> list[Game]:
@@ -267,6 +284,83 @@ def _duel(g: Game, people: list[dict], frames: str | None) -> dict | None:
     return out
 
 
+def _form(g: Game, people: list[dict], frames: str | None) -> dict | None:
+    """한눈에 · 지표 칸 재료. 사람마다 숫자는 src/riot/benchmark.py의 people()과 같은 꼴로 만들어 같은 식을 쓴다."""
+    if g.duel is None or not frames:
+        return None
+    from src.riot.benchmark import end_stats, lane_share, mates_share, snowball, team_shares, tile_values
+    at15 = json.loads(frames)
+    minutes = g.duration_s / 60
+    kills = {t: sum(p.get("kills", 0) for p in people if p.get("teamId") == t) for t in (100, 200)}
+    seat, wins = {}, {}
+    for p in people:
+        line = at15.get(str(p.get("participantId")))
+        pos = p.get("teamPosition") or ""
+        if not line or pos not in POSITIONS:
+            return None
+        seat[p["teamId"], pos] = {**end_stats(p, kills[p["teamId"]], minutes), **line}
+    if len(seat) != 10:
+        return None
+    me, foe = seat[g.team, g.position], seat[300 - g.team, g.position]
+    team = [v for (t, _q), v in seat.items() if t == g.team]
+    mates = [v for (t, q), v in seat.items() if t == g.team and q != g.position]
+    rivals = [v for (t, q), v in seat.items() if t != g.team and q != g.position]
+    return {"lane": lane_share(me, foe),
+            "laneG": 100 * me["gold15"] / max(me["gold15"] + foe["gold15"], 1),
+            "laneX": 100 * me["xp15"] / max(me["xp15"] + foe["xp15"], 1),
+            "shares": team_shares(me, team),
+            "behind": sum(v["gold15"] for v in mates) < sum(v["gold15"] for v in rivals),
+            "tiles": {**tile_values(me, team, foe, minutes), "mates": mates_share(mates, rivals)},
+            "snow": snowball(me, foe, g.win)}
+
+
+def _gaps(g: Game, people: list[dict], curve: str | None) -> dict | None:
+    """나 − 맞은편 라이너, 5분마다 (그 판이 간 데까지). 참가자 번호는 경기 원본에서 찾는다."""
+    if not curve or g.queue != 420 or g.position not in POSITIONS:
+        return None
+    c = json.loads(curve)
+    me = next((p for p in people if "puuid" in p), None)
+    foe = next((p for p in people if p.get("teamId") != g.team and p.get("teamPosition") == g.position), None)
+    if me is None or foe is None:
+        return None
+    a, b = c.get(str(me.get("participantId"))), c.get(str(foe.get("participantId")))
+    if not a or not b:
+        return None
+    return {k: [x - y for x, y in zip(a[k], b[k])] for k in ("cs", "gold", "xp")}
+
+
+def curve() -> dict:
+    """시간대별 격차 — 판마다 나 − 맞은편, 그리고 티어·자리·챔피언 기준. 묶기는 화면이 한다."""
+    gs = [g for g in games() if g.gaps]
+    bench = json.loads(BENCHMARK.read_text(encoding="utf-8")).get("curve") if BENCHMARK.exists() else None
+    if not gs or not bench or not bench.get("tiers"):
+        return {"available": False, "games": len(gs)}
+    return {"available": True, "minutes": bench["minutes"], "sample": bench["games"],
+            "games": [{"pos": g.position, "champ": g.champion, "win": g.win, "account": g.account, "gaps": g.gaps} for g in gs],
+            "tiers": bench["tiers"], "posPooled": bench["posPooled"], "champs": bench["champs"]}
+
+
+def form() -> dict:
+    """한눈에 지표 (라인전 · 캐리력 · 인분 · 멘탈) — 판마다 재료와 티어별 기준. 묶기는 화면이 한다."""
+    gs = [g for g in games() if g.form]
+    if not gs or not BENCHMARK.exists():
+        return {"available": False}
+    bench = json.loads(BENCHMARK.read_text(encoding="utf-8")).get("form")
+    if not bench:
+        return {"available": False}
+    rows = []
+    for g in gs:
+        f, avg, q = g.form, bench["posShare"][g.position], bench["contribQ"][g.position]
+        contrib = sum(f["shares"][k] / avg[k] for k in range(3)) / 3
+        pctl = float(np.interp(contrib, q, np.linspace(0, 100, len(q))))
+        rows.append({"pos": g.position, "win": g.win, "account": g.account, "champ": g.champion,
+                     "lane": round(f["lane"], 2), "laneG": round(f["laneG"], 2), "laneX": round(f["laneX"], 2),
+                     "t": g.created_ms, "dur": g.duration_s, "foe": g.foe, "gaps": g.gaps,
+                     "contrib": round(contrib, 3), "pctl": round(pctl, 1), "behind": f["behind"], "snow": f["snow"],
+                     "v": {k: round(v, 4) for k, v in f["tiles"].items()}})
+    return {"available": True, "games": rows, "base": bench["tiers"], "q": bench.get("q", {}), "lower": bench.get("lower", [])}
+
+
 def _ahead(a, b, lower: bool):
     if a is None or b is None:
         return None
@@ -293,6 +387,25 @@ def hexagon() -> dict:
     return {"available": True, "games": rows, "patch": bench["patch"], "season": bench["patch"].split(".")[0],
             "tiers": bench["tiers"], "minGames": HEX_MIN_GAMES,
             "champs": champs, "posPooled": bench.get("posPooled", {}), "champMin": bench.get("champMin")}
+
+
+# ---------------------------------------------------------------- 티어 그래프
+
+LP_PER_GAME = 20        # 지난 티어를 승패로 거슬러 갈 때 한 판에 오르내린다고 보는 LP (실제는 MMR 따라 ±5쯤 다르다)
+
+
+def tier_graph() -> dict:
+    """솔로랭크 판마다 (계정, 시즌, 시각, 승패)와 찍어 둔 진짜 랭크. 선 긋기·시즌 고르기는 화면이 한다.
+
+    지난 티어·LP는 Riot API에 없다 — 갱신할 때마다 찍은 랭크(rank_snapshot)만 진짜 점이고,
+    그 사이와 그 전은 판마다 이기면 +LP_PER_GAME, 지면 −LP_PER_GAME으로 거슬러 간 추정이다.
+    """
+    gs = [g for g in games() if g.queue == 420 and g.season]
+    if not gs:
+        return {"available": False}
+    return {"available": True, "lpPerGame": LP_PER_GAME,
+            "games": [{"a": g.account, "s": g.season, "t": g.created_ms, "w": g.win} for g in gs],
+            "snaps": [r for r in _cache["ranks"] if r["q"] == "RANKED_SOLO_5x5"]}
 
 
 def summary(rec=None, lang: str | None = None) -> dict:
@@ -326,7 +439,28 @@ def summary(rec=None, lang: str | None = None) -> dict:
     champs, rest = [], []
     for (c, p), ix in by(lambda i: (gs[i].champion, gs[i].position)).items():
         (champs if len(ix) >= TAG_MIN else rest).append(((c, p), ix))
-    champions = sorted(({"championId": c, "position": p, **block(ix)} for (c, p), ix in champs),
+    def foes(ix: list[int]) -> dict:
+        """이 챔피언으로 만난 상대 라이너 — FOE_MIN판 넘은 상대만 따로, 나머지는 한 줄로."""
+        groups = _group([i for i in ix if gs[i].foe is not None], lambda i: gs[i].foe)
+        rows, rest_ix = [], []
+        for c, fix in groups.items():
+            if len(fix) < FOE_MIN:
+                rest_ix += fix
+                continue
+            r = {"championId": c, **block(fix)}
+            duel = [gs[i] for i in fix if gs[i].duel]
+            r["duelGames"] = len(duel)
+            if len(duel) >= FOE_DETAIL_MIN:
+                r["lead"] = {}
+                for k in HEX_STATS:
+                    xs = [_ahead(g.duel["me"].get(k), g.duel["foe"].get(k), k in LOWER_IS_BETTER) for g in duel]
+                    xs = [x for x in xs if x is not None]
+                    r["lead"][k] = round(sum(xs) / len(xs) * 100, 1) if xs else None
+            rows.append(r)
+        rows.sort(key=lambda r: (-r["games"], r["winrate"]))
+        return {"rows": rows, "rest": {"champions": len(groups) - len(rows), **block(rest_ix)}}
+
+    champions = sorted(({"championId": c, "position": p, **block(ix), "foes": foes(ix)} for (c, p), ix in champs),
                        key=lambda r: -r["games"])
     rest_ix = [i for _k, ix in rest for i in ix]
 
@@ -344,6 +478,20 @@ def summary(rec=None, lang: str | None = None) -> dict:
     mates = sorted((block(ix) for ix in mate_ix.values() if len(ix) >= 3), key=lambda r: -r["games"])
     for k, r in enumerate(mates, 1):
         r["label"] = L(f"동료 {k}", f"Teammate {k}", lang)
+
+    sides = [{"side": t, **block(ix)} for t, ix in sorted(by(lambda i: gs[i].team).items())]
+
+    # 챔피언 풀 — 한 챔피언에 얼마나 기대나 (전체와 자리마다)
+    def focus(ix: list[int]) -> dict:
+        counts = sorted((len(cix) for cix in _group(ix, lambda i: gs[i].champion).values()), reverse=True)
+        n = len(ix)
+        top = sorted(_group(ix, lambda i: gs[i].champion).items(), key=lambda kv: -len(kv[1]))[:3]
+        return {"games": n, "champs": len(counts),
+                "top1": _pct(sum(counts[:1]), n), "top3": _pct(sum(counts[:3]), n), "top5": _pct(sum(counts[:5]), n),
+                "top": [{"championId": c, **block(cix)} for c, cix in top]}
+    pos_ix = by(lambda i: gs[i].position)
+    champ_pool = {**focus(list(range(len(gs)))),
+                  "positions": [{"position": p, **focus(pos_ix[p])} for p in POSITIONS if p in pos_ix]}
 
     cuts = [(0, 25, L("25분 미만", "Under 25 min", lang)), (25, 30, L("25~30분", "25–30 min", lang)),
             (30, 35, L("30~35분", "30–35 min", lang)), (35, 999, L("35분 이상", "35+ min", lang))]
@@ -365,6 +513,9 @@ def summary(rec=None, lang: str | None = None) -> dict:
         "lane": lane[:12],
         "mates": mates,
         "duration": duration,
+        "sides": sides,
+        "pool": champ_pool,
+        "foeMin": FOE_MIN, "foeDetailMin": FOE_DETAIL_MIN,
         "accounts": sorted(({"riotId": a, **block(ix)} for a, ix in by(lambda i: gs[i].account).items()),
                            key=lambda r: -r["games"]) if len(_cache["accounts"]) > 1 else [],
     }

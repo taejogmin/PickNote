@@ -109,10 +109,17 @@ def meta(lang: str | None = None):
             # 고른 서버 모델이 아직 없어 한국 모델을 빌려 쓰는 중
             status += L(f"<br>{rg.name(lang=lang)} 모델이 아직 없어 한국 모델을 씁니다",
                         f"<br>No {rg.name(lang=lang)} model yet — using the Korean model", lang)
+        # 머리 줄에는 한 줄로 짧게, 자세한 것은 마우스를 올리면 (좁은 창에서 다섯 줄로 깨지던 것)
+        n, latest = info["matches"], (info["patches"] or "").split(" · ")[-1]
+        short = L((f"{n / 10000:,.0f}만" if n >= 10000 else f"{n:,}") + "경기" + (f" · 패치 {latest}" if latest else ""),
+                  (f"{n / 1e6:.2f}M" if n >= 1e6 else f"{n:,}") + " games" + (f" · patch {latest}" if latest else ""), lang)
+        if rg.server() != rg.DEFAULT and rg.usable_model_dir() == rg.model_dir(rg.DEFAULT):
+            short += L(" · 한국 모델", " · KR model", lang)      # 고른 서버 모델이 없어 빌려 쓰는 중 — 짧은 줄에도 남긴다
     return {
         "version": _champ_data["version"],
         "champions": _champ_data["champions"],
         "status": status,
+        "statusShort": status if _mock else short,
         "defaultTier": "IRON" if _mock else _recommender.default_tier(),
         # 아이언에만 보정이 있으면 화면은 다섯 칸 드롭다운 대신 "아이언입니까?" 한 칸을 띄운다.
         # 체크를 안 하면 baseTier를 보내 보정 없이 받는다.
@@ -214,6 +221,24 @@ def me_summary(lang: str | None = None):
     out["champions_meta"] = {cid: {"name": c["name"], "en": c["en"], "image": c["image"]}
                              for cid, c in _champ_data["champions"].items()}
     return out
+
+
+@app.get("/api/me/tier")
+def me_tier():
+    """티어 그래프 — 솔로랭크 판의 승패와 갱신 때 찍은 랭크. 기록이 없으면 available: false."""
+    return mine.tier_graph()
+
+
+@app.get("/api/me/form")
+def me_form():
+    """한눈에 지표 — 라인전 · 캐리력 · 인분 · 멘탈. 타임라인이나 기준 표가 없으면 available: false."""
+    return mine.form()
+
+
+@app.get("/api/me/curve")
+def me_curve():
+    """시간대별 격차 — 5분마다 맞은편과 CS·골드·경험치 차이. 자료가 없으면 available: false."""
+    return mine.curve()
 
 
 @app.get("/api/me/hexagon")

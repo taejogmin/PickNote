@@ -24,7 +24,8 @@
   .logo{display:flex;align-items:center;gap:7px;color:var(--text);text-decoration:none;font-size:16px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;margin:0}
   .logo img{width:20px;height:20px;display:block}
   .logo em{font-style:normal;color:var(--gold)}
-  header .id{color:var(--dim);font-size:13px}
+  header .id{color:var(--dim);font-size:13px;flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* 계정 이름이 길어도 머리 줄을 한 줄로 */
+  @media (min-width:1000px){header{flex-wrap:nowrap} header > :not(.id){flex-shrink:0}}
   header .back{margin-left:auto;border:1px solid var(--line);border-radius:7px;padding:5px 11px;
     color:var(--dim);font-size:13px;text-decoration:none;white-space:nowrap}
   header .back:hover{color:var(--text);border-color:var(--faint)}
@@ -72,6 +73,110 @@
   td.kda b{font-weight:600} td.kda small{display:block;color:var(--faint);font-size:11px;margin-top:1px}
   @media (max-width:640px){td.kda small+small{display:none} th,td{padding-left:5px;padding-right:5px}}   /* 좁은 화면에서는 합을 빼고 칸을 좁힌다 */
 
+  /* 사이드 · 챔피언 풀 */
+  .sides{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:8px;margin-top:6px}
+  .sides .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+  .sides .k{font-size:12px;font-weight:600}
+  .sides .r{text-align:right}
+  .blue{color:#5b8def} .red{color:#e0485a}
+  .sides .mid{text-align:center;color:var(--dim);font-size:12px;padding-bottom:6px}
+  .sides .mid b{display:inline-block;margin-top:3px;padding:1px 8px;border-radius:6px;background:var(--panel2);color:var(--text);font-weight:600}
+  .wrbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:10px 0 14px;background:var(--panel2)}
+  .wrbar i{display:block}
+  .bars{display:grid;gap:7px;font-size:12.5px}
+  .bars .b{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+  .bars .b > span:first-child{min-width:44px}
+  table.sidetbl th{white-space:normal;vertical-align:bottom}
+  table.sidetbl td.diffcell{width:auto}
+  table.sidetbl th,table.sidetbl td{padding-left:6px;padding-right:6px}
+  .bars .b > span:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+  .track2{height:7px;border-radius:4px;background:var(--panel2);overflow:hidden}
+  .track2 i{display:block;height:100%;border-radius:4px}
+  .poolnums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  .pooltbl td .tops{display:flex;gap:3px;justify-content:flex-end}
+  .pooltbl td .tops img{width:22px;height:22px;border-radius:5px;background:var(--panel2)}
+
+  /* 챔피언 줄 펼치기 — 그 챔피언으로 만난 상대 */
+  tr.champrow{cursor:pointer}
+  tr.champrow:hover td{background:#18202b}
+  tr.champrow:focus-visible{outline:2px solid var(--win);outline-offset:-2px}
+  .caret{display:inline-block;width:12px;color:var(--faint);font-size:10px;transition:transform .15s}
+  tr.champrow[aria-expanded="true"] .caret{transform:rotate(90deg)}
+  tr.foes > td{padding:4px 8px 12px 28px;background:#10151d;white-space:normal}
+  tr.foes table td,tr.foes table th{padding:4px 7px;font-size:12.5px}
+  tr.foes .champ img{width:22px;height:22px;flex-basis:22px}
+  tr.foes .note{color:var(--faint);font-size:11.5px;margin:8px 0 0}
+  td.lead{width:58px}
+  td.lead.na{color:var(--faint)}
+
+  /* 티어 그래프 */
+  .rankcard{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;background:var(--panel2);border-radius:10px;padding:12px 14px;margin:6px 0 12px}
+  .tierbadge{font-weight:700;font-size:17px;color:#0a0e14;background:var(--tc);border-radius:7px;padding:2px 10px}
+  .rankcard .lp{font-size:17px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .rankcard .wr{font-size:15px}
+  .rankcard .wr b{font-size:19px;font-weight:700}
+  .rankcard .when{flex-basis:100%;color:var(--faint);font-size:11.5px}
+  .seg button small{color:var(--faint);font-weight:500;margin-left:3px}
+  .seg button[data-season][aria-pressed="true"]{box-shadow:inset 0 -2px 0 var(--sc)}
+  .seg button:disabled{color:var(--faint);cursor:not-allowed}
+  .tg-cmp{font-size:12.5px;color:var(--dim);margin:2px 0 6px}
+  .tg-cmp b{color:var(--text)}
+  .tg-wrap{position:relative}
+  .tg-wrap svg{display:block;width:100%;height:auto;touch-action:pan-y}
+  .tg-wrap svg text{font:11px "Pretendard","Malgun Gothic",system-ui,sans-serif;fill:var(--faint)}
+  .tg-wrap svg text.major{fill:var(--dim);font-weight:600}
+  .tg-tip{position:absolute;pointer-events:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:7px 10px;font-size:12px;line-height:1.6;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:5}
+
+  /* 한눈에 */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .tile{background:var(--panel2);border-radius:10px;padding:12px 10px;text-align:center;min-width:0}
+  .tile .tv{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
+  .tile .tn{font-size:12.5px;font-weight:600;margin-top:4px}
+  .tile .tp{color:var(--dim);font-size:12px;margin-top:1px}
+  .tile .ts{color:var(--faint);font-size:10.5px;margin-top:3px;line-height:1.4}
+  .tile.good{background:linear-gradient(160deg,#1c2a3f,#1b232f)}
+  .tile.good .tv{color:var(--rec)}
+  .tile.bad{background:linear-gradient(160deg,#33222a,#1b232f)}
+  .tile.bad .tv{color:#f19a9a}
+  @media (max-width:520px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .mindtbl td small{display:block;color:var(--faint);font-size:11px;white-space:normal}
+  .mindtbl td:first-child{white-space:normal}
+
+  /* 시간대별 격차 */
+  .ccharts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  @media (max-width:860px){.ccharts{grid-template-columns:minmax(0,1fr)}}
+  .cchart{background:var(--panel2);border-radius:10px;padding:10px 10px 4px;min-width:0}
+  .cchart h3{font-size:12.5px;font-weight:600;margin:0 0 4px}
+  .cchart svg{display:block;width:100%;height:auto}
+  .cchart svg text{font:10.5px "Pretendard","Malgun Gothic",system-ui,sans-serif;fill:var(--faint)}
+
+  /* 최근 20판 · 탭 */
+  nav.tabs{display:flex;gap:2px;background:var(--panel2);border-radius:8px;padding:3px}
+  nav.tabs a{font-size:13px;font-weight:600;color:var(--dim);text-decoration:none;padding:4px 12px;border-radius:6px}
+  nav.tabs a[aria-current="page"]{background:var(--line);color:var(--text)}
+  nav.tabs a:focus-visible{outline:2px solid var(--win);outline-offset:2px}
+  nav.tabs{flex-wrap:wrap}
+  header .tiersel{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font:inherit;font-size:13px}
+  /* 탭 — 지금 탭이 아닌 섹션은 숨긴다. data-tab 이 없는 섹션(맨 아래 안내)은 어느 탭에나 */
+  main[data-tab] section[data-tab]{display:none}
+  main[data-tab="summary"] section[data-tab~="summary"], main[data-tab="trend"] section[data-tab~="trend"],
+  main[data-tab="skill"] section[data-tab~="skill"], main[data-tab="champ"] section[data-tab~="champ"],
+  main[data-tab="opp"] section[data-tab~="opp"]{display:block}
+  .growtbl td small,.rtable td small{display:block;color:var(--faint);font-size:11px}
+  .growtbl td:first-child,.mixtbl td:first-child{color:var(--dim)}
+  .mixtbl td{white-space:normal}
+  tr.rrow{cursor:pointer}
+  tr.rrow:hover td{background:#18202b}
+  tr.rrow.w td:first-child{box-shadow:inset 3px 0 0 var(--win)}
+  tr.rrow.l td:first-child{box-shadow:inset 3px 0 0 var(--loss)}
+  tr.rrow:focus-visible{outline:2px solid var(--win);outline-offset:-2px}
+  tr.rdetail > td{background:#10151d;padding:10px;white-space:normal}
+  .tile.mini{padding:8px 6px}
+  .tile.mini .tv{font-size:16px}
+  .tile.mini .tn{font-size:11.5px}
+  .tile.mini .tp{font-size:11px}
+
   /* 달별 */
   .months svg{display:block;width:100%;height:auto}
   .months text{font:10.5px "Pretendard","Malgun Gothic",system-ui,sans-serif;fill:var(--faint)}
@@ -108,7 +213,10 @@
   .locked{display:grid;place-items:center;text-align:center;min-height:160px;color:var(--dim);
     border:1px dashed var(--ring-strong);border-radius:8px;padding:16px}
   td .base{color:var(--faint)}
-  .hextable th{white-space:normal;vertical-align:bottom}     /* 폰에서 티어 평균 칸이 밖으로 밀리지 않게 */
+  .hextable th{white-space:normal;vertical-align:bottom}
+  .stylebody{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px;align-items:center}
+  @media (max-width:760px){.stylebody{grid-template-columns:minmax(0,1fr)}}
+  .growtbl td.base{color:var(--faint)}     /* 폰에서 티어 평균 칸이 밖으로 밀리지 않게 */
   @media (max-width:520px){.hextable th,.hextable td{padding:5px 4px}}
 
   /* 언어 전환 — 오른쪽 아래 구석, 머리줄 단추와 겹치지 않게 */
@@ -124,6 +232,8 @@
 <header>
   <a class="logo" href="/" title="PickNote"><img src="/static/logo.svg" alt=""><span>Pick<em>Note</em></span></a>
   <h1 class="sub-title" data-en="My record">내 기록</h1>
+  <nav class="tabs" aria-label="보기"><a href="#summary" data-view="summary">요약</a><a href="#trend" data-view="trend">추이</a><a href="#skill" data-view="skill">실력</a><a href="#champ" data-view="champ">챔피언</a><a href="#opp" data-view="opp">상대·팀</a><a href="#recent" data-view="recent">최근 20판</a></nav>
+  <select class="tiersel" id="tierSel" aria-label="기준 티어"></select>
   <span class="id" id="rid"></span>
   <a class="back" href="/" data-en="Back to picks">추천 화면으로</a>
 </header>
@@ -190,7 +300,7 @@ function render(){
   const pos = D.positions;
   const html = [];
 
-  html.push(`<section class="wide">
+  html.push(`<section class="wide" data-tab="summary">
     <div class="stats">
       <div class="stat"><div class="k">${L("판 수", "Games")}</div><div class="v">${a.games}</div><div class="s">${esc(D.remakeNote)}</div></div>
       <div class="stat"><div class="k">${L("승률", "Win rate")}</div><div class="v ${sign(a.winrate - 50)}">${pct(a.winrate)}</div><div class="s">${L("솔로랭크 · 자유랭크", "Solo/Duo · Flex")}</div></div>
@@ -207,37 +317,44 @@ function render(){
       Rows with fewer than ${THIN} games are faded — chance alone easily swings them ±15pp.`)}</div>` : ""}
   </section>`);
 
+  html.push(`<section class="wide" id="form" data-tab="summary" hidden></section>`);
+
   // 계정이 둘 이상일 때만 — 계정마다 붙는 상대 수준이 다를 수 있어 따로도 본다
-  if(D.accounts?.length) html.push(`<section class="wide"><h2>${L("계정별", "By account")}</h2><div class="sub">${L("위 숫자는 전부 합친 것 · 계정마다 만나는 상대 수준이 다를 수 있습니다", "The numbers above combine all accounts · each account may face a different level of opponents")}</div>
+  if(D.accounts?.length) html.push(`<section class="wide" data-tab="opp" data-sec="accounts"><h2>${L("계정별", "By account")}</h2><div class="sub">${L("위 숫자는 전부 합친 것 · 계정마다 만나는 상대 수준이 다를 수 있습니다", "The numbers above combine all accounts · each account may face a different level of opponents")}</div>
     <div class="tw"><table>${head(L("계정", "Account"), true)}${D.accounts.map(r =>
       `<tr class="${thin(r)}"><td>${esc(r.riotId)}</td>${cols(r, true)}</tr>`).join("")}</table></div></section>`);
 
-  html.push(`<section class="wide" id="hex" hidden></section>`);
+  html.push(`<section class="wide" id="tier" data-tab="trend" hidden></section>`);
+  html.push(`<section class="wide" id="hex" data-tab="skill" hidden></section>`);
+  html.push(`<section class="wide" id="curve" data-tab="skill" hidden></section>`);
 
-  html.push(`<section><h2>${L("포지션", "Position")}</h2><div class="sub">${L("어느 자리에서 내 몫이 나오나", "Where your edge comes from")}</div>
+  html.push(`<section data-tab="champ" data-sec="pos"><h2>${L("포지션", "Position")}</h2><div class="sub">${L("어느 자리에서 내 몫이 나오나", "Where your edge comes from")}</div>
     <div class="tw"><table>${head(L("포지션", "Position"), true)}${pos.map(r =>
       `<tr class="${thin(r)}"><td>${POS_KO[r.position] ?? r.position}</td>${cols(r, true)}</tr>`).join("")}</table></div></section>`);
 
-  html.push(`<section><h2>${L("경기 길이별", "By game length")}</h2><div class="sub">${L(`"그 길이까지 갔을 때" 이긴 비율`, `Win rate in games that lasted that long`)}</div>
+  html.push(`<section class="wide" data-tab="skill"><h2>${L("경기 길이별", "By game length")}</h2><div class="sub">${L(`"그 길이까지 갔을 때" 이긴 비율`, `Win rate in games that lasted that long`)}</div>
     <div class="tw"><table>${head(L("길이", "Length"))}${D.duration.map(r =>
       `<tr class="${thin(r)}"><td>${r.label}</td>${cols(r)}</tr>`).join("")}</table></div></section>`);
 
+  html.push(sidesSection(), poolSection());
+
   const rest = D.rest;
-  html.push(`<section class="wide"><h2>${L("챔피언", "Champions")}</h2><div class="sub">${L("그 자리에서 3판 이상 · 판 수 순", "3+ games in that position · by games played")}</div>
-    <div class="tw"><table>${head(L("챔피언", "Champion"), true)}${D.champions.map(r =>
-      `<tr class="${thin(r)}"><td>${champCell(r.championId, POS_KO[r.position] ?? "")}</td>${cols(r, true)}</tr>`).join("")}
+  html.push(`<section class="wide" data-tab="champ" data-sec="champs"><h2>${L("챔피언", "Champions")}</h2><div class="sub">${L("그 자리에서 3판 이상 · 판 수 순 · 줄을 누르면 그 챔피언으로 만난 상대 라이너가 펼쳐집니다", "3+ games in that position · by games played · click a row to see the lane opponents you faced")}</div>
+    <div class="tw"><table id="champTable">${head(L("챔피언", "Champion"), true)}${D.champions.map((r, i) =>
+      `<tr class="champrow ${thin(r)}" data-i="${i}" tabindex="0" aria-expanded="false" title="${L("눌러서 이 챔피언으로 만난 상대 보기", "Click to see the opponents you faced with this champion")}"><td><div class="champ"><span class="caret">▶</span><img src="${img(r.championId)}" alt="" loading="lazy">
+        <span>${esc(nameOf(r.championId))} <small>${POS_KO[r.position] ?? ""}</small></span></div></td>${cols(r, true)}</tr>`).join("")}
       ${rest.games ? `<tr class="rest"><td>${L(`나머지 ${rest.champions}개 (각 1~2판)`, `${rest.champions} others (1–2 games each)`)}</td>${cols(rest, true)}</tr>` : ""}
     </table></div></section>`);
 
-  html.push(`<section class="wide months"><h2>${L("달별", "By month")}</h2><div class="sub">${L(`막대는 판 수, 위 숫자는 그달 승률 (${THIN}판 미만은 회색)`, `Bars are games played, numbers above are that month's win rate (gray under ${THIN} games)`)}</div>
+  html.push(`<section class="wide months" data-tab="trend"><h2>${L("달별", "By month")}</h2><div class="sub">${L(`막대는 판 수, 위 숫자는 그달 승률 (${THIN}판 미만은 회색)`, `Bars are games played, numbers above are that month's win rate (gray under ${THIN} games)`)}</div>
     ${monthsSVG(D.months)}</section>`);
 
-  html.push(`<section><h2>${L("자주 만난 상대 라이너", "Frequent lane opponents")}</h2><div class="sub">${L("같은 포지션의 상대 챔피언 · 5판 이상", "Enemy champion in your position · 5+ games")}</div>
+  html.push(`<section data-tab="opp" data-sec="lane"><h2>${L("자주 만난 상대 라이너", "Frequent lane opponents")}</h2><div class="sub">${L("같은 포지션의 상대 챔피언 · 5판 이상", "Enemy champion in your position · 5+ games")}</div>
     ${D.lane.length ? `<div class="tw"><table>${head(L("상대", "Opponent"))}${D.lane.map(r =>
       `<tr class="${thin(r)}"><td>${champCell(r.championId)}</td>${cols(r)}</tr>`).join("")}</table></div>`
       : `<div class="sub">${L("아직 5판 넘게 만난 상대가 없습니다", "No opponent faced 5+ times yet")}</div>`}</section>`);
 
-  html.push(`<section><h2>${L("같이 한 사람", "Teammates")}</h2><div class="sub">${L("같은 팀으로 3판 이상 — 이름은 저장하지 않아 번호로만 보입니다", "3+ games on the same team — names aren't stored, so they show as numbers")}</div>
+  html.push(`<section data-tab="opp" data-sec="mates"><h2>${L("같이 한 사람", "Teammates")}</h2><div class="sub">${L("같은 팀으로 3판 이상 — 이름은 저장하지 않아 번호로만 보입니다", "3+ games on the same team — names aren't stored, so they show as numbers")}</div>
     ${D.mates.length ? `<div class="tw"><table>${head("")}${D.mates.map(r =>
       `<tr class="${thin(r)}"><td>${r.label}</td>${cols(r)}</tr>`).join("")}</table></div>`
       : `<div class="sub">${L("없습니다", "None")}</div>`}</section>`);
@@ -251,7 +368,737 @@ function render(){
     but there aren't enough games yet to tell — the record only appears on recommendation rows as <b>My record N games · W%</b>.`)}
   </section>`);
 
-  document.getElementById("main").innerHTML = html.join("");
+  const mainEl = document.getElementById("main");
+  mainEl.innerHTML = html.join("");
+  const foot = mainEl.querySelector("section.foot");
+  for(const sec of ["champs", "pool", "pos", "lane", "mates", "sides", "accounts"]){
+    const el = mainEl.querySelector(`[data-sec="${sec}"]`);
+    if(el) mainEl.insertBefore(el, foot);
+  }
+  const toggle = tr => {
+    const open = tr.getAttribute("aria-expanded") === "true";
+    tr.setAttribute("aria-expanded", String(!open));
+    if(open){ if(tr.nextElementSibling?.classList.contains("foes")) tr.nextElementSibling.remove(); return; }
+    tr.insertAdjacentHTML("afterend", foesRow(D.champions[+tr.dataset.i]));
+  };
+  document.querySelectorAll("#champTable tr.champrow").forEach(tr => {
+    tr.onclick = () => toggle(tr);
+    tr.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(tr); } };
+  });
+}
+
+// ---------------------------------------------------------------- 사이드
+function sidesSection(){
+  const by = Object.fromEntries((D.sides || []).map(r => [r.side, r]));
+  const b = by[100] || {games:0, winrate:null, kda:[0,0,0]}, r = by[200] || {games:0, winrate:null, kda:[0,0,0]};
+  const n = b.games + r.games;
+  if(!n) return "";
+  const BLUE = L("블루", "Blue"), RED = L("레드", "Red");
+  const gap = b.winrate != null && r.winrate != null ? b.winrate - r.winrate : null;
+  const share = x => x.games / n * 100;
+  const lead = gap == null ? "—" : Math.abs(gap) < 0.05 ? L("같음", "Even") : `${gap > 0 ? BLUE : RED} +${Math.abs(gap).toFixed(1)}${PP}`;
+  const bw = b.winrate ?? 0, rw = r.winrate ?? 0;
+  const noise = Math.round(98 * Math.sqrt(1 / Math.max(b.games, 1) + 1 / Math.max(r.games, 1)));
+  const games = x => L(`${x.games}판`, `${x.games} games`);
+  return `<section data-tab="opp" data-sec="sides"><h2>${L("사이드", "Side")}</h2><div class="sub">${L("사이드는 고를 수 없어 운에 가깝습니다", "You can't pick your side, so this is mostly luck")}</div>
+    <div class="sides">
+      <div><div class="k blue">${BLUE}</div><div class="v">${pct(b.winrate)}</div></div>
+      <div class="mid">${L("승률", "Win rate")}<br><b>${lead}</b></div>
+      <div class="r"><div class="k red">${RED}</div><div class="v">${pct(r.winrate)}</div></div>
+    </div>
+    <div class="wrbar" aria-hidden="true"><i style="width:${bw + rw ? bw / (bw + rw) * 100 : 50}%;background:#5b8def"></i><i style="flex:1;background:#e0485a"></i></div>
+    <div class="bars">
+      <div class="sub" style="margin:0">${L("걸린 판", "Games on each side")}</div>
+      <div class="b"><span class="blue">${BLUE}</span><div class="track2"><i style="width:${share(b)}%;background:#5b8def"></i></div><span>${games(b)} · ${share(b).toFixed(1)}%</span></div>
+      <div class="b"><span class="red">${RED}</span><div class="track2"><i style="width:${share(r)}%;background:#e0485a"></i></div><span>${games(r)} · ${share(r).toFixed(1)}%</span></div>
+    </div>
+    <div class="tw" style="margin-top:12px"><table class="sidetbl">${head(L("사이드", "Side"), true)}
+      <tr class="${thin(b)}"><td class="blue">${BLUE}</td>${cols(b, true)}</tr>
+      <tr class="${thin(r)}"><td class="red">${RED}</td>${cols(r, true)}</tr></table></div>
+    ${gap != null ? `<div class="explain">${L(`이 판 수면 두 사이드 승률 차이는 우연으로도 ±${noise}%p쯤 납니다.`, `With this many games, the gap between sides can be ±${noise}pp from luck alone.`)}${D.hasModel ? L(" 조합 기대에는 사이드 이점이 들어 있어서, <b>내 몫</b> 칸은 사이드 운을 덜어 낸 값입니다.", " The draft expectation already includes the side advantage, so <b>Your edge</b> has side luck taken out.") : ""}</div>` : ""}
+  </section>`;
+}
+
+// ---------------------------------------------------------------- 챔피언 풀
+function poolSection(){
+  const P = D.pool;
+  if(!P?.games) return "";
+  const total = Object.keys(D.champions_meta || {}).length;
+  const bar = (label, v) => `<div class="b"><span>${label}</span><div class="track2"><i style="width:${v ?? 0}%;background:var(--win)"></i></div><span>${pct(v)}</span></div>`;
+  const tops = r => `<div class="tops">${r.top.map(t => `<img src="${img(t.championId)}" alt="${esc(nameOf(t.championId))}" title="${esc(nameOf(t.championId))} ${L(`${t.games}판 · 승률`, `${t.games} games · win rate`)} ${pct(t.winrate)}" loading="lazy">`).join("")}</div>`;
+  const MAIN = L("주력", "Main"), TOP3 = L("상위 3", "Top 3");
+  return `<section data-tab="champ" data-sec="pool"><h2>${L("챔피언 풀", "Champion pool")}</h2><div class="sub">${L("한 챔피언에 얼마나 기대나 — 판 수 기준", "How much you lean on a few champions — by games played")}</div>
+    <div class="poolnums">
+      <div class="stat"><div class="k">${L("해 본 챔피언", "Champions played")}</div><div class="v">${P.champs}${total ? ` <small style="font-size:13px;color:var(--faint);font-weight:500">/ ${total}</small>` : ""}</div></div>
+      <div class="stat"><div class="k">${L("상위 3 의존도", "Top 3 focus")}</div><div class="v">${pct(P.top3)}</div><div class="s">${L("많이 한 챔피언 셋의 판 비율", "Share of games on your 3 most played")}</div></div>
+    </div>
+    <div class="bars">
+      ${bar(MAIN, P.top1)}${bar(TOP3, P.top3)}${bar(L("상위 5", "Top 5"), P.top5)}
+    </div>
+    <div class="tw" style="margin-top:12px"><table class="pooltbl">
+      <tr><th>${L("자리", "Position")}</th><th>${L("판", "Games")}</th><th>${L("챔피언", "Champs")}</th><th title="${L("그 자리에서 가장 많이 한 챔피언의 판 비율", "Share of games on your most played champion in that position")}">${MAIN}</th><th>${TOP3}</th><th>${L("많이 한 순", "Most played")}</th></tr>
+      ${P.positions.map(r => `<tr class="${thin(r)}"><td>${POS_KO[r.position] ?? r.position}</td><td>${r.games}</td><td>${r.champs}</td>
+        <td>${pct(r.top1)}</td><td>${pct(r.top3)}</td><td>${tops(r)}</td></tr>`).join("")}
+    </table></div>
+    <div class="explain">${L("주력 의존도가 높을수록 그 챔피언이 밴되거나 뺏겼을 때 타격이 큽니다. 아이콘에 마우스를 올리면 판 수와 승률이 보입니다.",
+      "The higher your main focus, the more it hurts when that champion is banned or taken. Hover an icon for its games and win rate.")}</div>
+  </section>`;
+}
+
+// ---------------------------------------------------------------- 챔피언 줄 펼치기 — 그 챔피언으로 만난 상대 라이너
+const FOE_AXES = [{k:"gold15", n:L("라인전", "Laning"), u:L("15분 골드", "Gold at 15")}, {k:"gold", n:L("골드", "Gold"), u:L("분당 골드", "Gold per min")},
+                  {k:"dmg", n:L("딜", "Damage"), u:L("분당 챔피언 딜", "Champion damage per min")}, {k:"kp", n:L("킬 관여", "Kill part."), u:L("킬 관여", "Kill participation")},
+                  {k:"deaths", n:L("생존", "Survival"), u:L("데스 (적을수록 앞섬)", "Deaths (fewer is ahead)")}, {k:"vision", n:L("시야", "Vision"), u:L("분당 시야 점수", "Vision score per min")}];
+function foesRow(c){
+  const F = c.foes, span = 4 + (D.hasModel ? 2 : 0), lo = D.foeMin - 1;
+  const others = k => L(`각 1~${lo}판`, `1–${lo} games each`);
+  if(!F.rows.length) return `<tr class="foes"><td colspan="${span}"><div class="note">${L(`${D.foeMin}판 넘게 만난 상대 라이너가 아직 없습니다`, `No lane opponent faced ${D.foeMin}+ times yet`)}${F.rest.games ? L(` (만난 상대 ${F.rest.champions}명, ${others()})`, ` (${F.rest.champions} opponents, ${others()})`) : ""}.</div></td></tr>`;
+  const leadCell = (r, a) => {
+    const v = r.lead?.[a.k];
+    if(v == null) return `<td class="lead na" title="${r.lead ? L("15분 타임라인이 없습니다", "No 15-minute timeline") : L(`솔로랭크 15분 넘은 판이 ${D.foeDetailMin}판 미만`, `Fewer than ${D.foeDetailMin} solo queue games over 15 min`)}">—</td>`;
+    const cls = Math.abs(v - 50) < 98 / Math.sqrt(r.duelGames) ? "" : sign(v - 50);
+    return `<td class="lead ${cls}" title="${a.u}: ${L(`맞은편 ${esc(nameOf(r.championId))}보다 앞선 판 ${Math.round(v)}% (${r.duelGames}판)`, `ahead of ${esc(nameOf(r.championId))} in ${Math.round(v)}% of games (${r.duelGames})`)}">${Math.round(v)}%</td>`;
+  };
+  const rows = F.rows.map(r => `<tr class="${thin(r)}"><td>${champCell(r.championId)}</td><td>${r.games}</td>
+    <td class="${r.games >= THIN ? sign(r.winrate - 50) : ""}">${pct(r.winrate)}</td><td class="kda"><b>${kdaRatio(r.kda)}</b><small>${kdaAvg(r.kda, r.games)}</small></td>
+    ${FOE_AXES.map(a => leadCell(r, a)).join("")}</tr>`).join("");
+  const rest = F.rest.games ? `<tr class="rest"><td>${L(`나머지 ${F.rest.champions}명 (${others()})`, `${F.rest.champions} others (${others()})`)}</td><td>${F.rest.games}</td><td>${pct(F.rest.winrate)}</td><td class="kda"><b>${kdaRatio(F.rest.kda)}</b></td>${FOE_AXES.map(() => "<td></td>").join("")}</tr>` : "";
+  const w = Math.round(98 / Math.sqrt(D.foeDetailMin));
+  return `<tr class="foes"><td colspan="${span}"><div class="tw"><table>
+      <tr><th>${L("상대", "vs")} ${POS_KO[c.position] ?? ""}</th><th>${L("판", "Games")}</th><th>${L("승률", "Win rate")}</th><th>KDA</th>${FOE_AXES.map(a => `<th title="${a.u} — ${L("맞은편보다 앞선 판의 비율", "share of games ahead of your lane opponent")}">${a.n}</th>`).join("")}</tr>
+      ${rows}${rest}</table></div>
+    <div class="note">${L(`${D.foeMin}판 이상 만난 상대만 따로 셉니다. 오른쪽 여섯 칸은 그 상대보다 앞선 판의 비율(50%가 동률)이고,
+      솔로랭크 15분 넘은 판이 ${D.foeDetailMin}판 이상일 때만 보입니다. 판이 적어 크게 흔들리므로, 우연 폭(${D.foeDetailMin}판이면 ±${w}%p)을 넘을 때만 색을 칠합니다.`,
+      `Only opponents faced ${D.foeMin}+ times get their own row. The six columns on the right are the share of games you were ahead of that opponent (50% = even),
+      shown once there are ${D.foeDetailMin}+ solo queue games over 15 minutes. Samples are small, so a cell is colored only when it's beyond chance (±${w}pp at ${D.foeDetailMin} games).`)}</div></td></tr>`;
+}
+
+
+// ---------------------------------------------------------------- 한눈에 (지표 칸)
+// 기준은 승패 육각형과 같은 티어 표본(benchmark.json의 form). 판마다 같은 티어·같은 자리 사람 중 몇 등인지 재고 그 평균을 "상위 N%"로 쓴다.
+let FM = null;
+const fm = {pos: ""};
+const MIND = [
+  {k:"lost", name:L("역전승", "Comebacks"), d:L("라인전 진 판 중 이긴 비율", "Lost lane but won the game"), good:+1},
+  {k:"won", name:L("역전패", "Thrown leads"), d:L("라인전 이긴 판 중 진 비율", "Won lane but lost the game"), good:-1},
+  {k:"behind", name:L("혼자 캐리", "Solo carries"), d:L("15분에 팀원 넷이 밀린 판 중, 라인전 이기고 끝까지 평균 이상 하고 이긴 비율", "Teammates behind at 15 min, yet you won lane, stayed above average to the end, and won"), good:+1},
+];
+/** 비율 하나를 티어 보통과 견준다 — 이 판들의 자리 비율대로 기준을 섞는다 */
+function rateVs(pick, hit, baseKey, good){
+  const T = FM.base[hx.tier] || FM.base.SILVER;
+  const n = pick.length;
+  const mine = n ? pick.reduce((s, g) => s + hit(g), 0) / n * 100 : null;
+  const base = avg(pick.map(g => T[g.pos]?.[baseKey]?.[0]).filter(x => x != null));
+  const b = (base ?? 50) / 100, se = 100 * Math.sqrt(b * (1 - b) / Math.max(n, 1));
+  return {n, mine, base, z: mine == null || base == null ? null : (mine - base) / se * good, wob: Math.round(1.96 * se)};
+}
+function mindPart(gs, m){
+  const pick = m.k === "lost" ? gs.filter(g => g.lane < 50) : m.k === "won" ? gs.filter(g => g.lane > 50) : gs.filter(g => g.behind);
+  const hit = g => m.k === "lost" ? g.win : m.k === "won" ? 1 - g.win : (g.win && g.lane > 50 && g.contrib >= 1 ? 1 : 0);
+  return {...m, ...rateVs(pick, hit, m.k, m.good)};
+}
+/** 판 하나에서 그 값이 같은 티어·자리 표본의 몇 %보다 높은가 (0~100). 적을수록 좋은 지표는 뒤집는다 */
+function pctOf(g, k){
+  const q = FM.q[hx.tier]?.[g.pos]?.[k] ?? FM.q.SILVER?.[g.pos]?.[k];
+  const v = g.v[k];
+  if(!q || v == null) return null;
+  // 분위수 21개 사이를 잇는다. 같은 값이 여러 분위에 걸치면(솔로킬 0, 데스 0처럼) 그 구간의 가운데로
+  const last = q.length - 1, below = q.filter(x => x < v).length, same = q.filter(x => x === v).length;
+  let p;
+  if(same) p = (below + (same - 1) / 2) / last * 100;
+  else if(below === 0) p = 0;
+  else if(below > last) p = 100;
+  else p = (below - 1 + (v - q[below - 1]) / (q[below] - q[below - 1])) / last * 100;
+  return FM.lower.includes(k) ? 100 - p : p;
+}
+const GRADES = [[95, "S"], [90, "A+"], [80, "A"], [70, "A-"], [60, "B+"], [50, "B"], [40, "B-"], [30, "C+"], [20, "C"], [0, "D"]];
+const grade = p => GRADES.find(([c]) => p >= c)[1];
+const CORE = ["gold", "xp15", "dmg", "taken", "kp", "deaths", "vision", "lane"];    // 체급에 넣는 것
+const fmtN = (v, d = 1) => v == null || !isFinite(v) ? "—" : v.toFixed(d);
+const fmtK = v => v == null ? "—" : Math.round(v).toLocaleString();
+const pctS = v => v == null ? "—" : `${Math.round(v * 100)}%`;
+const signed = (v, f) => v == null ? "" : `${v >= 0 ? "+" : "−"}${f(Math.abs(v))}`;
+/** 지표 칸 정의 — v: 보이는 값, k: 등수를 잴 지표, sub: 값 아래 작은 줄 */
+const TILES = [
+  {n:"KDA", k:"kda", v: gs => { const t = [0, 0, 0]; gs.forEach(g => { t[0] += g.v.kills; t[1] += g.v.deaths; t[2] += g.v.assists; }); return t[1] ? fmtN((t[0] + t[2]) / t[1], 2) : "Perfect"; }},
+  {n:L("라인전", "Laning"), k:"lane", v: gs => { const m = avg(gs.map(g => g.lane)); return `${Math.round(m)} : ${100 - Math.round(m)}`; }, sub: gs => L(`골드·경험치 몫 · 이긴 라인 ${Math.round(gs.filter(g => g.lane > 50).length / gs.length * 100)}%`, `Gold & XP share · lanes won ${Math.round(gs.filter(g => g.lane > 50).length / gs.length * 100)}%`)},
+  {n:L("15분 킬 관여율", "Kill part. at 15"), k:"kp15", v: gs => pctS(avg(gs.map(g => g.v.kp15)))},
+  {n:L("킬 관여율", "Kill participation"), k:"kp", v: gs => pctS(avg(gs.map(g => g.v.kp)))},
+  {n:L("팀 딜 비중", "Team damage share"), k:"dmgShare", v: gs => pctS(avg(gs.map(g => g.v.dmgShare)))},
+  {n:L("15분 CS", "CS at 15"), k:"cs15", v: gs => fmtN(avg(gs.map(g => g.v.cs15)), 0), sub: gs => `${L("분당", "per min")} ${fmtN(avg(gs.map(g => g.v.cs15)) / 15)} · ${L("맞은편", "vs opp.")} ${signed(avg(gs.map(g => g.v.cs15d)), x => fmtN(x))}`},
+  {n:L("15분 골드", "Gold at 15"), k:"gold15", v: gs => fmtK(avg(gs.map(g => g.v.gold15))), sub: gs => `${L("분당", "per min")} ${fmtK(avg(gs.map(g => g.v.gold15)) / 15)} · ${L("맞은편", "vs opp.")} ${signed(avg(gs.map(g => g.v.gold15d)), fmtK)}`},
+  {n:L("15분 경험치", "XP at 15"), k:"xp15", v: gs => fmtK(avg(gs.map(g => g.v.xp15))), sub: gs => `${L("맞은편", "vs opp.")} ${signed(avg(gs.map(g => g.v.xp15d)), fmtK)}`},
+  {n:L("분당 CS", "CS per min"), k:"cs", v: gs => fmtN(avg(gs.map(g => g.v.cs)), 2)},
+  {n:L("분당 골드", "Gold per min"), k:"gold", v: gs => fmtK(avg(gs.map(g => g.v.gold)))},
+  {n:L("킬", "Kills"), k:"kills", v: gs => fmtN(avg(gs.map(g => g.v.kills)), 2)},
+  {n:L("어시스트", "Assists"), k:"assists", v: gs => fmtN(avg(gs.map(g => g.v.assists)), 2)},
+  {n:L("데스", "Deaths"), k:"deaths", v: gs => fmtN(avg(gs.map(g => g.v.deaths)), 2), sub: () => L("적을수록 위", "Fewer ranks higher")},
+  {n:L("솔로킬", "Solo kills"), k:"solo", v: gs => fmtN(avg(gs.map(g => g.v.solo)), 2)},
+  {n:L("솔로킬 비중", "Solo kill share"), k:"soloShare", v: gs => { const k = gs.reduce((s, g) => s + g.v.kills, 0); return k ? pctS(gs.reduce((s, g) => s + g.v.solo, 0) / k) : "—"; }, sub: () => L("내 킬 중 솔로킬", "Share of your kills")},
+  {n:L("분당 딜량", "Damage per min"), k:"dmg", v: gs => fmtK(avg(gs.map(g => g.v.dmg)))},
+  {n:L("분당 받은 딜량", "Taken per min"), k:"taken", v: gs => fmtK(avg(gs.map(g => g.v.taken)))},
+  {n:L("골드당 딜량", "Damage per gold"), k:"dmgPerGold", v: gs => fmtN(avg(gs.map(g => g.v.dmgPerGold)), 2)},
+  {n:L("데스당 딜량", "Damage per death"), k:"dmgPerDeath", v: gs => fmtK(avg(gs.map(g => g.v.dmgPerDeath)))},
+  {n:L("데스당 받은 딜량", "Taken per death"), k:"takenPerDeath", v: gs => fmtK(avg(gs.map(g => g.v.takenPerDeath)))},
+  {n:L("분당 시야 점수", "Vision per min"), k:"vision", v: gs => fmtN(avg(gs.map(g => g.v.vision)), 2)},
+  {n:L("제어 와드", "Control wards"), k:"ctrl", v: gs => fmtN(avg(gs.map(g => g.v.ctrl)), 2)},
+];
+function renderForm(){
+  const box = document.getElementById("form");
+  if(!box || !FM?.available) return;
+  box.hidden = false;
+  const tally = {}; FM.games.forEach(g => tally[g.pos] = (tally[g.pos] || 0) + 1);
+  const posList = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+  if(fm.pos && !tally[fm.pos]) fm.pos = "";
+  const gs = FM.games.filter(g => !fm.pos || g.pos === fm.pos), n = gs.length;
+  const tierKo = TIER_KO[hx.tier] ?? hx.tier;
+  const meanPct = k => avg(gs.map(g => pctOf(g, k)).filter(x => x != null));
+  const top = p => p == null ? "—" : L(`상위 ${Math.max(1, Math.round(100 - p))}%`, `Top ${Math.max(1, Math.round(100 - p))}%`);
+  const tone = p => p == null ? "" : p >= 70 ? " good" : p <= 30 ? " bad" : "";
+  const tile = (value, name, p, sub, extra = "") => `<div class="tile${tone(p)}"${extra}><div class="tv">${value}</div><div class="tn">${name}</div><div class="tp">${top(p)}</div>${sub ? `<div class="ts">${sub}</div>` : ""}</div>`;
+  const tileTxt = (value, name, line, toneP, sub) => `<div class="tile${tone(toneP)}"><div class="tv">${value}</div><div class="tn">${name}</div><div class="tp">${line}</div>${sub ? `<div class="ts">${sub}</div>` : ""}</div>`;
+
+  // 맨 윗줄 — 묶은 지표
+  const body = avg(gs.map(g => avg(CORE.map(k => pctOf(g, k)).filter(x => x != null))));
+  const carry = avg(gs.map(g => g.pctl)), share = avg(gs.map(g => g.contrib));
+  const parts = MIND.map(m => mindPart(gs, m));
+  const zs = parts.map(p => p.z).filter(z => z != null);
+  const z = zs.length ? zs.reduce((s, x) => s + x, 0) / zs.length : null;
+  const zLabel = (z, hi, lo, mid) => z == null ? "—" : z >= 1 ? hi : z <= -1 ? lo : mid;
+  const zTone = z => z == null ? null : z >= 1 ? 80 : z <= -1 ? 20 : 50;
+  const snow = rateVs(gs.filter(g => g.snow != null), g => g.snow, "snow", +1);
+  const mates = meanPct("mates"), matesSe = 28.9 / Math.sqrt(Math.max(n, 1));
+  // 표본이 크면 아주 작은 차이도 우연이 아니게 되므로, 등수 평균이 3 이상 벌어졌을 때만 좋음/나쁨
+  const luckZ = mates == null ? null : Math.abs(mates - 50) < 3 ? 0 : (mates - 50) / matesSe;
+  const matesV = avg(gs.map(g => g.v.mates)), laneV = avg(gs.map(g => g.lane));
+  const ratio1 = v => `${v.toFixed(1)} : ${(100 - v).toFixed(1)}`;    // 팀운은 차이가 작아 소수 한 자리
+  const head = [
+    tile(grade(body), L("체급", "Overall"), body, L("핵심 지표 등수의 평균", "Average rank of core stats")),
+    tile(Math.round(carry), L("캐리력", "Carry"), carry, L("팀 안 몫 · 자리 평균 50", "Team share · role average 50")),
+    tile(`${share.toFixed(2)}`, L("인분", "Share"), carry, L("자리 평균 1.00", "Role average 1.00")),
+    tileTxt(zLabel(z, L("강함", "Strong"), L("약함", "Shaky"), L("보통", "Average")), L("멘탈", "Mental"), L("역전승 · 역전패 · 혼자 캐리", "Comebacks · thrown leads · solo carries"), zTone(z)),
+    tileTxt(snow.mine == null ? "—" : `${Math.round(snow.mine)}%`, L("스노우볼", "Snowball"), `${L(`${tierKo} 보통`, `Typical ${tierKo}`)} ${snow.base == null ? "—" : Math.round(snow.base) + "%"}`, zTone(snow.z), L(`라인전 이긴 ${snow.n}판 중 끝까지 앞서 이김`, `Stayed ahead and won, of ${snow.n} lanes won`)),
+    tileTxt(zLabel(luckZ, L("좋음", "Good"), L("나쁨", "Bad"), L("보통", "Average")), L("팀운", "Team luck"), `${L("팀원", "Team")} ${ratio1(matesV)} · ${L("나", "You")} ${ratio1(laneV)}`, zTone(luckZ), L("15분 골드·경험치 몫", "Gold & XP share at 15")),
+  ];
+  const rest = TILES.map(t => tile(t.v(gs), t.n, meanPct(t.k), t.sub?.(gs)));
+  const row = p => `<tr><td>${p.name}<small>${p.d}</small></td><td class="${p.z == null || Math.abs(p.z) < 1 ? "" : p.z > 0 ? "pos" : "neg"}">${pct(p.mine)}</td>
+    <td>${pct(p.base)}</td><td>${p.n}</td><td class="base">±${p.wob}${PP}</td></tr>`;
+  const opt = (v, label, on) => `<option value="${v}"${on ? " selected" : ""}>${esc(label)}</option>`;
+  box.innerHTML = `<h2>${L("한눈에", "At a glance")}</h2><div class="sub">${L(`솔로랭크 15분 넘은 판 ${n}판 · 판마다 ${tierKo} 같은 자리 사람 중 몇 등이었는지의 평균 — 기준 티어는 맨 위에서 고릅니다`, `${n} Solo/Duo games over 15 min · your average rank among ${tierKo} players in the same role, game by game — pick the tier at the top`)}</div>
+    <div class="hexbar"><select id="fmPos" aria-label="${L("자리", "Position")}">${opt("", L(`자리 전체 ${FM.games.length}`, `All positions ${FM.games.length}`), !fm.pos)}${posList.map(([p, c]) => opt(p, `${POS_KO[p] ?? p} ${c}`, p === fm.pos)).join("")}</select></div>
+    ${n < 10 ? `<div class="locked">${L(`${n}판 — 10판부터 보여 줍니다`, `${n} games — shown from 10 games`)}</div>` : `
+    <div class="tiles">${head.join("")}${rest.join("")}</div>
+    <div class="tw" style="margin-top:14px"><table class="mindtbl">
+      <tr><th>${L("멘탈", "Mental")}</th><th>${L("나", "You")}</th><th>${L(`${tierKo} 보통`, `Typical ${tierKo}`)}</th><th>${L("판", "Games")}</th><th>${L("흔들림", "Noise")}</th></tr>
+      ${parts.map(row).join("")}</table></div>
+    <div class="explain">${L(`
+      <b>상위 N%</b>는 판마다 그 값이 같은 티어·같은 자리 표본에서 몇 %보다 높았는지를 평균 낸 것입니다 — 한 판짜리 사람들과 견주므로 50% 근처로 모이는 편입니다. 파란 칸은 상위 30% 안, 붉은 칸은 하위 30%.
+      <b>체급</b>은 골드 · 15분 경험치 · 딜 · 받은 딜 · 킬 관여 · 데스 · 시야 · 라인전 등수의 평균을 등급으로 바꾼 것입니다 (S 상위 5% · A 20% · B 50%).
+      <b>캐리력·인분</b>은 팀 안 딜 몫 · 골드 몫 · 킬 관여를 같은 자리 평균과 견준 값입니다.
+      <b>스노우볼</b>은 라인전을 이긴 판에서 끝까지 맞은편보다 골드가 많고 이긴 비율, <b>팀운</b>은 15분에 내 자리를 뺀 팀원 넷이 상대 넷과 나눈 골드·경험치 몫입니다 (50 : 50이 대등).
+      멘탈 · 스노우볼 · 팀운은 흔들림 폭을 넘을 때만 좋음/나쁨으로 나눕니다.`, `
+      <b>Top N%</b> averages, game by game, how many players in the same tier and role you beat on that stat — compared against single games, so it tends to sit near 50%. Blue tiles are in the top 30%, red in the bottom 30%.
+      <b>Overall</b> turns your average rank on gold, XP at 15, damage, damage taken, kill participation, deaths, vision and laning into a grade (S top 5% · A 20% · B 50%).
+      <b>Carry and share</b> compare your share of team damage, team gold and kill participation with the role average.
+      <b>Snowball</b> is the share of lanes you won where you stayed ahead of your opponent in gold to the end and won; <b>team luck</b> is the gold & XP share of your four teammates against their four opponents at 15 minutes (50 : 50 is even).
+      Mental, snowball and team luck only turn good or bad once the gap is beyond the noise.`)}</div>`}`;
+  const sel = box.querySelector("#fmPos");
+  if(sel) sel.onchange = e => { fm.pos = e.target.value; renderForm(); };
+}
+
+// ---------------------------------------------------------------- 티어 그래프
+// 지난 티어·LP는 API에 없다 — 갱신 때 찍은 랭크만 진짜 점이고, 나머지는 판마다 ±lpPerGame으로 거슬러 간 추정이다.
+const TIERS = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND"];
+const TIER_NAME = {IRON:L("아이언", "Iron"), BRONZE:L("브론즈", "Bronze"), SILVER:L("실버", "Silver"), GOLD:L("골드", "Gold"), PLATINUM:L("플래티넘", "Platinum"),
+                   EMERALD:L("에메랄드", "Emerald"), DIAMOND:L("다이아몬드", "Diamond"), MASTER:L("마스터", "Master"), GRANDMASTER:L("그랜드마스터", "Grandmaster"), CHALLENGER:L("챌린저", "Challenger")};
+const TIER_COLOR = {IRON:"#8a7f7a", BRONZE:"#b0765a", SILVER:"#9fb0c0", GOLD:"#d4b45c", PLATINUM:"#4fb3a9", EMERALD:"#3fbf74",
+                    DIAMOND:"#7a8cf0", MASTER:"#b46be0", GRANDMASTER:"#e05c5c", CHALLENGER:"#f0c75a"};
+const DIVS = ["IV", "III", "II", "I"], DIV_NUM = {IV:4, III:3, II:2, I:1};
+const SEASON_COLORS = ["--win", "--gold", "--rec", "--loss", "--dim"];
+const seasonYear = s => `${2010 + +s}`;           // 패치 16 = 2026 시즌
+const two = n => String(n).padStart(2, "0");
+const md = t => { const d = new Date(t); return `${two(d.getMonth() + 1)}/${two(d.getDate())}`; };
+const ymd = t => { const d = new Date(t); return `${String(d.getFullYear()).slice(2)}.${two(d.getMonth() + 1)}.${two(d.getDate())}`; };
+/** 티어를 한 줄 숫자로 — 아이언 IV 0LP = 0, 디비전마다 100, 마스터부터는 2800 + LP */
+const tierValue = (tier, div, lp) => TIERS.includes(tier) ? TIERS.indexOf(tier) * 400 + DIVS.indexOf(div) * 100 + lp : 2800 + lp;
+function tierLabel(v, withLp = true){
+  v = Math.max(0, Math.round(v));
+  if(v >= 2800) return `${L("마스터+", "Master+")} ${v - 2800}LP`;
+  const t = TIERS[Math.floor(v / 400)], d = DIVS[Math.floor(v % 400 / 100)];
+  return `${TIER_NAME[t]} ${DIV_NUM[d]}` + (withLp ? ` ${v % 100}LP` : "");
+}
+let TG = null;
+const tg = {acct: "", seasons: null, y: "tier"};
+
+function tierSeries(acct, season){
+  const gs = TG.games.filter(g => g.a === acct && g.s === season).sort((a, b) => a.t - b.t);
+  let net = 0, w = 0;
+  const pts = gs.map((g, i) => { net += g.w ? 1 : -1; w += g.w; return {i: i + 1, t: g.t, w: g.w, net, wins: w}; });
+  // 이 시즌 안에 찍은 가장 늦은 랭크 — 그 판 수에서 진짜 값이고, 앞뒤는 판마다 ±lpPerGame
+  const snap = gs.length ? TG.snaps.filter(r => r.a === acct && r.t >= gs[0].t).at(-1) : null;
+  if(snap){
+    const k = pts.filter(p => p.t <= snap.t).length;           // 찍기 전까지 한 판 수
+    const base = tierValue(snap.tier, snap.div, snap.lp), netK = k ? pts[k - 1].net : 0;
+    pts.forEach(p => p.v = base + TG.lpPerGame * (p.net - netK));
+    snap.at = k;
+  }
+  return {season, pts, snap, color: ""};
+}
+
+function niceStep(range, target = 6){
+  const raw = range / target, mag = 10 ** Math.floor(Math.log10(Math.max(raw, 1e-9)));
+  return [1, 2, 5, 10].map(m => m * mag).find(s => s >= raw) ?? 10 * mag;
+}
+
+/** W는 칸의 실제 폭(px) — 1000으로 그려 줄이면 폰에서 글자가 4px이 된다 */
+function tierChart(series, mode, W){
+  const narrow = W < 600, H = narrow ? 230 : 320, ML = narrow ? 64 : 92, R = narrow ? 10 : 18, T = 16, B = 40;
+  const single = series.length === 1;
+  const val = p => mode === "tier" ? p.v : p.net;
+  const all = series.flatMap(s => s.pts.map(val));
+  let lo = Math.min(...all, mode === "net" ? 0 : Infinity), hi = Math.max(...all, mode === "net" ? 0 : -Infinity);
+  const pad = Math.max((hi - lo) * 0.08, mode === "tier" ? 25 : 2);
+  lo -= pad; hi += pad;
+  const n = Math.max(...series.map(s => s.pts.length));
+  const X = i => ML + (n <= 1 ? 0 : (i - 1) / (n - 1) * (W - ML - R));
+  const Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${L("티어 그래프", "Rank graph")}">`;
+  // 가로 눈금
+  if(mode === "tier"){
+    const step = hi - lo > 1400 ? 400 : 100;
+    for(let v = Math.ceil(lo / step) * step; v <= hi; v += step){
+      const major = v % 400 === 0;
+      s += `<line x1="${ML}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(${major ? "--ring-strong" : "--ring"})" stroke-width="1"/>`;
+      s += `<text x="${ML - 8}" y="${Y(v) + 4}" text-anchor="end"${major ? ' class="major"' : ""}>${tierLabel(v, false)}</text>`;
+    }
+  }else{
+    const step = niceStep(hi - lo);
+    for(let v = Math.ceil(lo / step) * step; v <= hi; v += step){
+      s += `<line x1="${ML}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(${v === 0 ? "--ring-strong" : "--ring"})" stroke-width="1"/>`;
+      s += `<text x="${ML - 8}" y="${Y(v) + 4}" text-anchor="end"${v === 0 ? ' class="major"' : ""}>${v > 0 ? "+" : ""}${v}</text>`;
+    }
+  }
+  // 세로 눈금 — 한 시즌이면 날짜, 여럿이면 몇 판째
+  const ticks = Math.min(narrow ? 4 : 8, n);
+  for(let k = 0; k < ticks; k++){
+    const i = Math.round(1 + k * (n - 1) / Math.max(ticks - 1, 1));
+    const lab = single ? md(series[0].pts[i - 1].t) : L(`${i}판`, `#${i}`);
+    s += `<line x1="${X(i)}" x2="${X(i)}" y1="${T}" y2="${H - B}" stroke="var(--ring)" stroke-width="1" stroke-dasharray="2 4"/>`;
+    s += `<text x="${X(i)}" y="${H - B + 18}" text-anchor="${k === 0 && ticks > 1 ? "start" : k === ticks - 1 && ticks > 1 ? "end" : "middle"}">${lab}</text>`;
+  }
+  // 선
+  series.forEach(ser => {
+    const line = ser.pts.map(p => `${X(p.i).toFixed(1)},${Y(val(p)).toFixed(1)}`).join(" ");
+    if(single && ser.pts.length) s += `<polygon points="${X(1)},${H - B} ${line} ${X(ser.pts.length)},${H - B}" fill="var(${ser.color})" fill-opacity=".10"/>`;
+    s += `<polyline points="${line}" fill="none" stroke="var(${ser.color})" stroke-width="${single ? 2.2 : 2}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(ser.pts.length <= 60) ser.pts.forEach(p => s += `<circle cx="${X(p.i).toFixed(1)}" cy="${Y(val(p)).toFixed(1)}" r="2.6" fill="var(${ser.color})"/>`);
+    // 찍어 둔 진짜 랭크
+    if(mode === "tier" && ser.snap && ser.snap.at){
+      const p = ser.pts[ser.snap.at - 1];
+      s += `<circle cx="${X(p.i)}" cy="${Y(p.v)}" r="6" fill="var(--panel)" stroke="var(--text)" stroke-width="2"/>`;
+    }
+  });
+  s += `<line class="tg-guide" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--dim)" stroke-width="1" visibility="hidden"/>`;
+  s += `<rect class="tg-hit" x="${ML}" y="${T}" width="${W - ML - R}" height="${H - T - B}" fill="transparent"/>`;
+  return {svg: s + "</svg>", X, n, L: ML, R, W};
+}
+
+function renderTier(){
+  const box = document.getElementById("tier");
+  if(!box || !TG?.available) return;
+  box.hidden = false;
+  const tally = (gs, key) => { const c = {}; gs.forEach(g => c[key(g)] = (c[key(g)] || 0) + 1);
+    return Object.entries(c).sort((a, b) => b[1] - a[1]); };
+  const accts = tally(TG.games, g => g.a);
+  if(!accts.some(([a]) => a === tg.acct)) tg.acct = accts[0][0];
+  const mine = TG.games.filter(g => g.a === tg.acct);
+  const seasons = tally(mine, g => g.s).sort((a, b) => b[0] - a[0]);
+  if(!tg.seasons || !tg.seasons.some(s => seasons.some(([x]) => x === s))) tg.seasons = [seasons[0][0]];
+  tg.seasons = tg.seasons.filter(s => seasons.some(([x]) => x === s));
+  const series = tg.seasons.slice().sort((a, b) => b - a).map(s => tierSeries(tg.acct, s));
+  series.forEach(ser => ser.color = SEASON_COLORS[seasons.findIndex(([x]) => x === ser.season) % SEASON_COLORS.length]);
+  const single = series.length === 1;
+  const canTier = single && series[0].snap;
+  const mode = canTier && tg.y === "tier" ? "tier" : "net";
+
+  // 지금 랭크 (찍어 둔 것 중 가장 늦은 것)
+  const snap = TG.snaps.filter(r => r.a === tg.acct).at(-1);
+  const curSeason = seasons[0][0];
+  const recorded = mine.filter(g => g.s === curSeason).length;
+  const card = snap ? `<div class="rankcard">
+      <span class="tierbadge" style="--tc:${TIER_COLOR[snap.tier] ?? "var(--dim)"}">${TIER_NAME[snap.tier] ?? snap.tier}${snap.div && TIERS.includes(snap.tier) ? " " + DIV_NUM[snap.div] : ""}</span>
+      <span class="lp">${snap.lp} LP</span>
+      <span class="wr">${L("승률", "Win rate")} <b class="${sign((snap.wins / Math.max(snap.wins + snap.losses, 1)) * 100 - 50)}">${pct(snap.wins / Math.max(snap.wins + snap.losses, 1) * 100)}</b> ${L(`${snap.wins}승 ${snap.losses}패`, `${snap.wins}W ${snap.losses}L`)}</span>
+      <span class="when">${L(`${seasonYear(curSeason)} 시즌 솔로랭크 · ${new Date(snap.t).toLocaleDateString("ko-KR")} 갱신 때 · 기록에 있는 이번 시즌 판 ${recorded}`, `Season ${seasonYear(curSeason)} Solo/Duo · as of the ${new Date(snap.t).toLocaleDateString("en-US")} update · ${recorded} games this season in your record`)}</span>
+    </div>` : `<div class="rankcard"><span class="when">${L("아직 찍어 둔 랭크가 없습니다 — 4_MyRecord.cmd 나 Update.cmd 를 실행하면 지금 티어를 받아 옵니다. 그 전까지는 승패로 그린 순승리만 보입니다.", "No rank recorded yet — run 4_MyRecord.cmd or Update.cmd to fetch your current rank. Until then only net wins (from wins and losses) are shown.")}</span></div>`;
+
+  // 시즌 비교 — 같은 판 수에서
+  const minN = Math.min(...series.map(s => s.pts.length));
+  const cmp = series.length > 1 && minN ? `<div class="tg-cmp">${L(`${minN}판째 기준`, `At game ${minN}`)} — ${series.map(ser => {
+      const p = ser.pts[minN - 1];
+      return `<span style="color:var(${ser.color})">${seasonYear(ser.season)}</span> ${L("순승리", "net")} <b>${p.net > 0 ? "+" : ""}${p.net}</b> · ${L("승률", "win rate")} ${pct(p.wins / minN * 100)}`;
+    }).join("&nbsp;&nbsp;|&nbsp;&nbsp;")}</div>` : "";
+  const legend = `<div class="legend">${series.map(ser => {
+      const last = ser.pts.at(-1), best = Math.max(...ser.pts.map(p => p.net));
+      return `<span><i style="border-color:var(${ser.color})"></i>${L(`${seasonYear(ser.season)} 시즌`, `Season ${seasonYear(ser.season)}`)} · ${L(`${ser.pts.length}판`, `${ser.pts.length} games`)} · ${L("승률", "win rate")} ${pct(last ? last.wins / ser.pts.length * 100 : null)} · ${L("끝 순승리", "final net")} ${last.net > 0 ? "+" : ""}${last.net} (${L("최고", "peak")} ${best > 0 ? "+" : ""}${best})</span>`;
+    }).join("")}${mode === "tier" ? `<span><i style="border:0;width:10px;height:10px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--text);vertical-align:-1px"></i>${L("찍어 둔 진짜 랭크", "Recorded rank")}</span>` : ""}</div>`;
+  const chart = tierChart(series, mode, Math.max(300, box.clientWidth - 28));
+
+  box.innerHTML = `<h2>${L("티어 그래프", "Rank graph")}</h2>
+    <div class="sub">${L("솔로랭크", "Solo/Duo")} · ${mode === "tier" ? L(`찍어 둔 랭크에서 판마다 이기면 +${TG.lpPerGame}LP, 지면 −${TG.lpPerGame}LP로 거슬러 간 <b>추정</b>입니다`, `An <b>estimate</b> worked back from your recorded rank at +${TG.lpPerGame} LP per win and −${TG.lpPerGame} LP per loss`) : single ? L("순승리 = 그 시즌 이긴 판 − 진 판", "Net wins = wins − losses that season") : L("시즌 첫 판부터 몇 판째인지로 맞춰 겹쳤습니다 · 순승리 = 이긴 판 − 진 판", "Seasons lined up by game number from each season's first game · net wins = wins − losses")}</div>
+    ${card}
+    <div class="hexbar">
+      ${accts.length > 1 ? `<select id="tgAcct" aria-label="${L("계정", "Account")}">${accts.map(([a, c]) => `<option value="${esc(a)}"${a === tg.acct ? " selected" : ""}>${esc(a)} ${L(`${c}판`, `${c} games`)}</option>`).join("")}</select>` : ""}
+      <div class="seg" role="group" aria-label="${L("시즌 (여러 개 고르면 겹쳐 비교)", "Season (pick several to compare)")}">${seasons.map(([s, c]) =>
+        `<button type="button" data-season="${s}" aria-pressed="${tg.seasons.includes(s)}" style="--sc:var(${SEASON_COLORS[seasons.findIndex(([x]) => x === s) % SEASON_COLORS.length]})">${seasonYear(s)} <small>${c}</small></button>`).join("")}</div>
+      ${single ? `<div class="seg" role="group" aria-label="${L("세로축", "Vertical axis")}">
+        <button type="button" data-y="tier" aria-pressed="${mode === "tier"}"${canTier ? "" : ` disabled title="${L("이 시즌에 찍어 둔 랭크가 없어 티어로 맞출 기준이 없습니다", "No rank was recorded this season, so there's nothing to anchor a tier to")}"`}>${L("티어", "Rank")}</button>
+        <button type="button" data-y="net" aria-pressed="${mode === "net"}">${L("순승리", "Net wins")}</button></div>` : ""}
+    </div>
+    ${legend}${cmp}
+    <div class="tg-wrap">${chart.svg}<div class="tg-tip" hidden></div></div>
+    <div class="foot" style="margin-top:8px">${L(`Riot API에는 지난 티어·LP 기록이 없어서, <code>4_MyRecord.cmd</code>·<code>Update.cmd</code>로 내 기록을 갱신할 때마다 그때의 랭크를 찍어 둡니다 — 쌓일수록 진짜 점이 늘어납니다.
+      추정은 실제와 판마다 몇 LP씩 어긋나고(연승·MMR에 따라 한 판 15~30LP), 승급전 보호·강등 보호나 다시하기는 반영하지 않아 찍은 점에서 멀수록 틀립니다.
+      시즌을 여러 개 누르면 순승리로 겹쳐 지난 시즌보다 빨리 오르는지 비교합니다.`,
+      `Riot's API has no rank or LP history, so PickNote records your rank each time you refresh your record with <code>4_MyRecord.cmd</code> or <code>Update.cmd</code> — the more updates, the more real points.
+      The estimate drifts a few LP per game (real gains are 15–30 LP depending on streaks and MMR) and ignores promotion/demotion shields and remakes, so it gets less accurate the further it is from a recorded point.
+      Pick several seasons to overlay net wins and see whether you're climbing faster than last season.`)}</div>`;
+
+  box.querySelectorAll("[data-season]").forEach(b => b.onclick = () => {
+    const s = b.dataset.season, on = tg.seasons.includes(s);
+    if(on && tg.seasons.length === 1) return;                    // 하나는 남긴다
+    tg.seasons = on ? tg.seasons.filter(x => x !== s) : [...tg.seasons, s];
+    renderTier();
+  });
+  box.querySelectorAll("[data-y]").forEach(b => b.onclick = () => { tg.y = b.dataset.y; renderTier(); });
+  const acct = box.querySelector("#tgAcct");
+  if(acct) acct.onchange = e => { tg.acct = e.target.value; tg.seasons = null; renderTier(); };
+
+  // 마우스를 올리면 그 판
+  const svg = box.querySelector("svg"), hit = svg.querySelector(".tg-hit"), guide = svg.querySelector(".tg-guide"), tip = box.querySelector(".tg-tip");
+  const show = ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * chart.W;
+    const i = Math.min(chart.n, Math.max(1, Math.round(1 + (x - chart.L) / (chart.W - chart.L - chart.R) * (chart.n - 1))));
+    guide.setAttribute("x1", chart.X(i)); guide.setAttribute("x2", chart.X(i)); guide.setAttribute("visibility", "visible");
+    tip.innerHTML = `<b>${L(`${i}판째`, `Game ${i}`)}</b>` + series.map(ser => {
+      const p = ser.pts[i - 1];
+      if(!p) return "";
+      const d = ymd(p.t);
+      return `<div><span style="color:var(${ser.color})">${seasonYear(ser.season)}</span> ${d} · <span class="${p.w ? "pos" : "neg"}">${p.w ? L("승", "W") : L("패", "L")}</span> · ${L("순승리", "net")} ${p.net > 0 ? "+" : ""}${p.net}${p.v != null && mode === "tier" ? ` · ${tierLabel(p.v)}${ser.snap?.at === p.i ? L(" (진짜)", " (recorded)") : L(" (추정)", " (est.)")}` : ""}</div>`;
+    }).join("");
+    tip.hidden = false;
+    const left = (ev.clientX - r.left), wrapW = r.width;
+    tip.style.left = `${Math.min(Math.max(left + 12, 0), wrapW - tip.offsetWidth - 4)}px`;
+    tip.style.top = `${Math.max(ev.clientY - r.top - tip.offsetHeight - 10, 0)}px`;
+  };
+  hit.addEventListener("pointermove", show);
+  hit.addEventListener("pointerdown", show);
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; guide.setAttribute("visibility", "hidden"); });
+}
+let tierW = 0;
+addEventListener("resize", () => {            // 폭이 바뀌면 다시 그린다 (글자 크기를 지키려고)
+  const box = document.getElementById("tier");
+  if(!box || box.hidden || Math.abs(box.clientWidth - tierW) < 40) return;
+  tierW = box.clientWidth; renderTier();
+});
+
+// ---------------------------------------------------------------- 시간대별 격차 (맞은편과 CS · 골드 · 경험치, 5분마다)
+// 비교선: 챔피언을 고르면 같은 챔피언(다섯 티어 합 차이를 티어·자리 기준에 더함), 자리를 고르면 같은 자리 동티어, 아니면 동티어(내 자리 비율대로).
+let CV = null;
+const cv = {pos: "", champ: "", mode: "group"};
+const CURVE_KEYS = [{k:"cs", n:L("CS 격차", "CS gap")}, {k:"gold", n:L("골드 격차", "Gold gap")}, {k:"xp", n:L("경험치 격차", "XP gap")}];
+const CURVE_MIN_N = 5;          // 그 시간까지 간 내 판이 이보다 적으면 점을 찍지 않는다
+
+function curveBase(g, side, k, i){
+  const T = (CV.tiers[hx.tier] || CV.tiers.SILVER)?.[g.pos]?.[side];
+  const t = T?.[k]?.[i];
+  if(t == null) return null;
+  if(!cv.champ) return t;
+  const c = CV.champs?.[g.pos]?.[String(g.champ)]?.[side]?.[k]?.[i], p = CV.posPooled?.[g.pos]?.[side]?.[k]?.[i];
+  return c == null || p == null ? t : t + c - p;
+}
+/** 시간마다 (그 시간까지 간 판만) 내 평균과 비교선 */
+function curveLine(gs, k, side){
+  return CV.minutes.map((m, i) => {
+    const at = gs.filter(g => g.gaps[k].length > i);
+    const mine = at.length >= CURVE_MIN_N ? avg(at.map(g => g.gaps[k][i])) : null;
+    const base = at.length ? avg(at.map(g => curveBase(g, side, k, i)).filter(x => x != null)) : null;
+    return {m, n: at.length, mine, base};
+  });
+}
+function curveChart(title, unit, series){
+  const W = 340, H = 220, ML = 46, R = 12, T = 12, B = 28;
+  const vals = series.flatMap(s => s.pts.map(p => p.v)).filter(v => v != null);
+  if(!vals.length) return `<div class="cchart"><h3>${title}</h3><div class="locked">${L("자료가 모자랍니다", "Not enough data")}</div></div>`;
+  let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const pad = Math.max((hi - lo) * 0.12, unit === "cs" ? 1 : 30);
+  lo -= pad; hi += pad;
+  const mins = CV.minutes;
+  const X = i => ML + i / (mins.length - 1) * (W - ML - R);
+  const Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const step = niceStep(hi - lo, 5);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">`;
+  for(let v = Math.ceil(lo / step) * step; v <= hi; v += step){
+    s += `<line x1="${ML}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(${v === 0 ? "--ring-strong" : "--ring"})" stroke-width="1"/>`;
+    s += `<text x="${ML - 6}" y="${Y(v) + 4}" text-anchor="end">${v > 0 ? "+" : ""}${Math.abs(step) < 1 ? v.toFixed(1) : Math.round(v)}</text>`;
+  }
+  mins.forEach((m, i) => s += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle">${L(`${m}분`, `${m}m`)}</text>`);
+  series.forEach(ser => {
+    const segs = []; let cur = [];
+    ser.pts.forEach((p, i) => { if(p.v == null){ if(cur.length) segs.push(cur); cur = []; } else cur.push([X(i), Y(p.v)]); });
+    if(cur.length) segs.push(cur);
+    segs.forEach(seg => s += `<polyline points="${seg.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ")}" fill="none" stroke="${ser.color}" stroke-width="2.2" stroke-linejoin="round"${ser.dash ? ' stroke-dasharray="5 4"' : ""}/>`);
+    ser.pts.forEach((p, i) => { if(p.v == null) return;
+      s += `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${ser.dash ? 2.6 : 3.6}" fill="${ser.color}"><title>${ser.label} · ${L(`${mins[i]}분`, `${mins[i]} min`)} ${p.v > 0 ? "+" : ""}${unit === "cs" ? p.v.toFixed(1) : Math.round(p.v)}${p.n != null ? L(` (${p.n}판)`, ` (${p.n} games)`) : ""}</title></circle>`; });
+  });
+  return `<div class="cchart"><h3>${title}</h3>${s}</svg></div>`;
+}
+function renderCurve(){
+  const box = document.getElementById("curve");
+  if(!box || !CV) return;
+  if(!CV.available){
+    box.hidden = false;
+    box.innerHTML = `<h2>${L("시간대별 격차", "Gaps over time")}</h2><div class="locked">${L(`5분마다 숫자를 아직 받지 못했습니다 — 내 판 ${CV.games ?? 0}판. 4_MyRecord.cmd 나 Update.cmd 로 내 기록을 갱신하면 받아 옵니다.`, `The 5-minute numbers aren't downloaded yet — ${CV.games ?? 0} of your games so far. Refresh your record with 4_MyRecord.cmd or Update.cmd to fetch them.`)}</div>`;
+    return;
+  }
+  box.hidden = false;
+  const tally = (gs, key) => { const c = {}; gs.forEach(g => c[key(g)] = (c[key(g)] || 0) + 1); return Object.entries(c).sort((a, b) => b[1] - a[1]); };
+  const posList = tally(CV.games, g => g.pos);
+  if(cv.pos && !posList.some(([p]) => p === cv.pos)) cv.pos = "";
+  const inPos = CV.games.filter(g => !cv.pos || g.pos === cv.pos);
+  const champList = tally(inPos, g => g.champ);
+  if(cv.champ && !champList.some(([c]) => c === cv.champ)) cv.champ = "";
+  const gs = inPos.filter(g => !cv.champ || String(g.champ) === cv.champ);
+  const tierKo = TIER_KO[hx.tier] ?? hx.tier;
+  const champHasBase = cv.champ && gs.some(g => CV.champs?.[g.pos]?.[cv.champ]);
+  const baseName = cv.champ ? (champHasBase ? L(`${tierKo} 보통 ${nameOf(cv.champ)}`, `Typical ${tierKo} ${nameOf(cv.champ)}`) : L(`${tierKo} ${POS_KO[gs[0]?.pos] ?? ""} 보통 (${nameOf(cv.champ)} 표본 부족)`, `Typical ${tierKo} ${POS_KO[gs[0]?.pos] ?? ""} (too few ${nameOf(cv.champ)} games)`))
+    : cv.pos ? L(`${tierKo} ${POS_KO[cv.pos]} 보통`, `Typical ${tierKo} ${POS_KO[cv.pos]}`) : L(`${tierKo} 보통 (내 자리 비율)`, `Typical ${tierKo} (your role mix)`);
+  const BLUE = "#3f8bee", PURPLE = "#a46ee6", WIN = "#3f8bee", LOSS = "#d96c30";
+  let legend, charts;
+  if(cv.mode === "group"){
+    legend = [{c: BLUE, l: L(`나 ${gs.length}판`, `You · ${gs.length} games`)}, {c: PURPLE, l: baseName, d: true}];
+    charts = CURVE_KEYS.map(({k, n}) => { const line = curveLine(gs, k, "all");
+      return curveChart(n, k, [{label: baseName, color: PURPLE, dash: true, pts: line.map(p => ({v: p.base}))},
+                               {label: L("나", "You"), color: BLUE, pts: line.map(p => ({v: p.mine, n: p.n}))}]); });
+  }else{
+    const w = gs.filter(g => g.win), l = gs.filter(g => !g.win);
+    legend = [{c: WIN, l: L(`내 이긴 판 ${w.length}`, `Your wins ${w.length}`)}, {c: LOSS, l: L(`내 진 판 ${l.length}`, `Your losses ${l.length}`)}, {c: WIN, l: L(`${baseName} 이긴 판`, `${baseName} wins`), d: true}, {c: LOSS, l: L(`진 판`, `losses`), d: true}];
+    charts = CURVE_KEYS.map(({k, n}) => { const lw = curveLine(w, k, "win"), ll = curveLine(l, k, "loss");
+      return curveChart(n, k, [{label: L("보통 이긴 판", "Typical wins"), color: WIN, dash: true, pts: lw.map(p => ({v: p.base}))},
+                               {label: L("보통 진 판", "Typical losses"), color: LOSS, dash: true, pts: ll.map(p => ({v: p.base}))},
+                               {label: L("내 이긴 판", "Your wins"), color: WIN, pts: lw.map(p => ({v: p.mine, n: p.n}))},
+                               {label: L("내 진 판", "Your losses"), color: LOSS, pts: ll.map(p => ({v: p.mine, n: p.n}))}]); });
+  }
+  const opt = (v, label, on) => `<option value="${v}"${on ? " selected" : ""}>${esc(label)}</option>`;
+  const last = CV.minutes.at(-1), reach = gs.filter(g => g.gaps.cs.length >= CV.minutes.length).length;
+  box.innerHTML = `<h2>${L("시간대별 격차", "Gaps over time")}</h2>
+    <div class="sub">${L("5분마다 맞은편 라이너와의 CS · 골드 · 경험치 차이 (나 − 맞은편) · 솔로랭크 · 기준 티어는 맨 위에서 고릅니다", "CS, gold and XP difference with your lane opponent every 5 minutes (you − opponent) · Solo/Duo · pick the tier at the top")}</div>
+    <div class="hexbar">
+      <select id="cvPos" aria-label="${L("자리", "Position")}">${opt("", L(`자리 전체 ${CV.games.length}`, `All positions ${CV.games.length}`), !cv.pos)}${posList.map(([p, c]) => opt(p, `${POS_KO[p] ?? p} ${c}`, p === cv.pos)).join("")}</select>
+      <select id="cvChamp" aria-label="${L("챔피언", "Champion")}">${opt("", L("챔피언 전체", "All champions"), !cv.champ)}${champList.map(([c, k]) => opt(c, `${nameOf(c)} ${L(`${k}판`, `${k} games`)}`, c === cv.champ)).join("")}</select>
+      <div class="seg" role="group" aria-label="${L("표시 모드", "Display mode")}">
+        <button type="button" data-cmode="group" aria-pressed="${cv.mode === "group"}">${L("그룹별 비교", "vs group")}</button>
+        <button type="button" data-cmode="win" aria-pressed="${cv.mode === "win"}">${L("승패별 비교", "By result")}</button></div>
+    </div>
+    <div class="legend">${legend.map(x => `<span><i class="${x.d ? "dash" : ""}" style="border-color:${x.c}"></i>${esc(x.l)}</span>`).join("")}</div>
+    <div class="ccharts">${charts.join("")}</div>
+    <div class="foot" style="margin-top:8px">${L(`늦은 시간일수록 그때까지 간 판만 셉니다 — ${last}분까지 간 내 판은 ${reach}판입니다. 내 판이 ${CURVE_MIN_N}판 안 되는 시간은 점을 찍지 않습니다.
+      비교선은 티어마다 1,000판 표본${cv.champ ? " · 챔피언 선은 다섯 티어를 합쳐 100판 넘는 챔피언만, 그 차이를 이 티어 자리 기준에 더한 값" : ""}입니다. 점에 마우스를 올리면 값과 판 수가 보입니다.`, `Later minutes only count games that lasted that long — ${reach} of your games reached ${last} minutes. Minutes with fewer than ${CURVE_MIN_N} of your games get no point.
+      The comparison line comes from a 1,000-game sample per tier${cv.champ ? " · champion lines only for champions with 100+ games across all five tiers, with that difference added to this tier's role line" : ""}. Hover a point for its value and game count.`)}</div>`;
+  box.querySelector("#cvPos").onchange = e => { cv.pos = e.target.value; cv.champ = ""; renderCurve(); };
+  box.querySelector("#cvChamp").onchange = e => { cv.champ = e.target.value; renderCurve(); };
+  box.querySelectorAll("[data-cmode]").forEach(b => b.onclick = () => { cv.mode = b.dataset.cmode; renderCurve(); });
+}
+
+// ---------------------------------------------------------------- 최근 20판 (판마다 지표 · 내 과거와 비교)
+// 등수는 한눈에 칸과 같다 — 판마다 같은 티어·같은 자리 표본 중 몇 %보다 높았나. 자리가 섞여도 견줄 수 있게 등수로 비교한다.
+const RECENT_N = 20;
+const rc = {open: null};
+const STYLE_AXES = [
+  {k:"lane", n:L("라인전", "Laning"), f: g => pctOf(g, "lane")},
+  {k:"aggr", n:L("공격성", "Aggression"), f: g => avg([pctOf(g, "kills"), pctOf(g, "solo")].filter(x => x != null))},
+  {k:"team", n:L("팀플레이", "Teamplay"), f: g => avg([pctOf(g, "kp"), pctOf(g, "assists")].filter(x => x != null))},
+  {k:"dmgShare", n:L("딜 비중", "Damage share"), f: g => pctOf(g, "dmgShare")},
+  {k:"deaths", n:L("생존", "Survival"), f: g => pctOf(g, "deaths")},
+  {k:"vision", n:L("시야", "Vision"), f: g => pctOf(g, "vision")},
+];
+const bodyOf = g => avg(CORE.map(k => pctOf(g, k)).filter(x => x != null));
+const GROWTH = [
+  {n:L("체급", "Overall"), f: bodyOf, v: gs => grade(avg(gs.map(bodyOf)))},
+  {n:L("캐리력", "Carry"), f: g => g.pctl, v: gs => Math.round(avg(gs.map(g => g.pctl)))},
+  {n:L("라인전", "Laning"), k:"lane"}, {n:L("15분 골드", "Gold at 15"), k:"gold15"}, {n:L("15분 CS", "CS at 15"), k:"cs15"}, {n:L("15분 경험치", "XP at 15"), k:"xp15"},
+  {n:L("킬 관여율", "Kill participation"), k:"kp"}, {n:L("팀 딜 비중", "Team damage share"), k:"dmgShare"}, {n:L("분당 딜량", "Damage per min"), k:"dmg"}, {n:L("데스", "Deaths"), k:"deaths"},
+  {n:L("분당 시야 점수", "Vision per min"), k:"vision"}, {n:L("솔로킬", "Solo kills"), k:"solo"}, {n:"KDA", k:"kda"},
+];
+const tileOf = k => TILES.find(t => t.k === k);
+function radarAxes(axes, series){
+  const CX = 170, CY = 150, R = 104, N = axes.length;
+  const pt = (i, v) => { const a = -Math.PI / 2 + i * 2 * Math.PI / N, r = R * v / 100; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+  const pts = f => axes.map((a, i) => pt(i, f(a)).map(n => n.toFixed(1)).join(",")).join(" ");
+  let s = `<svg viewBox="0 0 340 300" role="img" aria-label="${L("플레이스타일", "Playstyle")}">`;
+  [25, 50, 75, 100].forEach(v => s += `<polygon points="${pts(() => v)}" fill="none" stroke="var(${v === 50 ? "--ring-strong" : "--ring"})" stroke-width="1"/>`);
+  axes.forEach((a, i) => { const [x, y] = pt(i, 100); s += `<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--ring)"/>`;
+    const [lx, ly] = pt(i, 119), anchor = Math.abs(lx - CX) < 4 ? "middle" : lx > CX ? "start" : "end";
+    s += `<text x="${lx.toFixed(1)}" y="${(ly + 5).toFixed(1)}" text-anchor="${anchor}">${a.n}</text>`; });
+  series.forEach(ser => {
+    if(ser.fill) s += `<polygon points="${pts(a => ser.vals[a.k] ?? 50)}" fill="${ser.color}" fill-opacity=".16"/>`;
+    s += `<polygon points="${pts(a => ser.vals[a.k] ?? 50)}" fill="none" stroke="${ser.color}" stroke-width="2" stroke-linejoin="round"${ser.dash ? ' stroke-dasharray="5 4"' : ""}/>`;
+    axes.forEach((a, i) => { const [x, y] = pt(i, ser.vals[a.k] ?? 50);
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${ser.dash ? 2.5 : 3.5}" fill="${ser.color}"><title>${ser.label} · ${a.n} ${Math.round(ser.vals[a.k] ?? 50)}</title></circle>`; });
+  });
+  return s + "</svg>";
+}
+/** 한 판의 맞은편 대비 격차 — 작은 선 그래프 */
+function gapSpark(vals, title, unit){
+  const W = 220, H = 120, ML = 40, R = 8, T = 10, B = 22, mins = [5, 10, 15, 20, 25, 30].slice(0, vals.length);
+  if(!vals.length) return "";
+  let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const pad = Math.max((hi - lo) * 0.15, unit === "cs" ? 2 : 50); lo -= pad; hi += pad;
+  const X = i => ML + (mins.length < 2 ? 0 : i / 5 * (W - ML - R)), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const col = vals.at(-1) >= 0 ? "var(--rec)" : "#f19a9a";
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}"><line x1="${ML}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--ring-strong)"/>`;
+  s += `<text x="${ML - 5}" y="${Y(hi - pad) + 4}" text-anchor="end">${hi - pad > 0 ? "+" : ""}${Math.round(hi - pad)}</text><text x="${ML - 5}" y="${Y(lo + pad) + 4}" text-anchor="end">${Math.round(lo + pad)}</text>`;
+  [5, 10, 15, 20, 25, 30].forEach((m, i) => s += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${m}</text>`);
+  s += `<polyline points="${vals.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="${col}" stroke-width="2"/>`;
+  vals.forEach((v, i) => s += `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${col}"><title>${L(`${mins[i]}분`, `${mins[i]} min`)} ${v > 0 ? "+" : ""}${Math.round(v)}</title></circle>`);
+  return `<div class="cchart"><h3>${title}</h3>${s}</svg></div>`;
+}
+function recentDetail(g){
+  const keys = ["kda", "lane", "kp15", "kp", "dmgShare", "cs15", "gold15", "xp15", "cs", "gold", "dmg", "taken", "dmgPerGold", "deaths", "solo", "vision", "ctrl"];
+  const tiles = keys.map(k => { const t = tileOf(k), p = pctOf(g, k);
+    return `<div class="tile mini${p == null ? "" : p >= 70 ? " good" : p <= 30 ? " bad" : ""}"><div class="tv">${t.v([g])}</div><div class="tn">${t.n}</div><div class="tp">${p == null ? "—" : L(`상위 ${Math.max(1, Math.round(100 - p))}%`, `Top ${Math.max(1, Math.round(100 - p))}%`)}</div></div>`; }).join("");
+  const sparks = g.gaps ? [["cs", L("CS 격차", "CS gap")], ["gold", L("골드 격차", "Gold gap")], ["xp", L("경험치 격차", "XP gap")]].map(([k, n]) => gapSpark(g.gaps[k], n, k)).join("") : `<div class="sub">${L("5분마다 숫자가 아직 없습니다", "No 5-minute numbers yet")}</div>`;
+  return `<tr class="rdetail"><td colspan="12"><div class="ccharts">${sparks}</div><div class="tiles" style="margin-top:10px">${tiles}</div></td></tr>`;
+}
+function renderRecent(){
+  const main = document.getElementById("main");
+  if(!FM){ main.innerHTML = `<div class="empty">${L("불러오는 중…", "Loading…")}</div>`; return; }
+  if(!FM.available){ main.innerHTML = `<div class="empty">${L("15분 타임라인이 있는 솔로랭크 판이 아직 없습니다.", "No Solo/Duo games with a 15-minute timeline yet.")}</div>`; return; }
+  document.title = `${L("최근 20판", "Last 20 games")} · ${D.riotId}`;
+  const all = FM.games.slice().sort((a, b) => b.t - a.t);
+  const recent = all.slice(0, RECENT_N), older = all.slice(RECENT_N);
+  // 두 기준을 함께 본다 — 그 전 20판(단기)과 그 전 전부(장기).
+  // 둘 다 넘게 오르면 꾸준히 좋아진 것, 그 전 20판보다만 오르면 잠깐 오른 것(그 전 20판이 낮았던 탓일 수 있다).
+  const sets = [
+    {key: "prev", label: L(`그 전 ${RECENT_N}판`, `Previous ${RECENT_N} games`), short: L("단기", "Short"), gs: older.slice(0, RECENT_N), color: "var(--dim)"},
+    {key: "all", label: L("그 전 전부", "Everything before"), short: L("장기", "Long"), gs: older, color: "var(--gold)"},
+  ].filter(s => s.gs.length);
+  const n1 = recent.length;
+  const tierKo = TIER_KO[hx.tier] ?? hx.tier;
+  const fval = (m, g) => m.f ? m.f(g) : pctOf(g, m.k);
+  const mp = (m, gs) => avg(gs.map(g => fval(m, g)).filter(x => x != null));
+  sets.forEach(s => s.noise = 1.96 * 28.9 * Math.sqrt(1 / n1 + 1 / s.gs.length));
+  const wr = gs => gs.length ? gs.filter(g => g.win).length / gs.length * 100 : null;
+  const raw = (m, gs) => m.v ? m.v(gs) : tileOf(m.k)?.v(gs) ?? "—";
+  const rows = GROWTH.map(m => { const a = mp(m, recent);
+    return {m, a, ra: raw(m, recent), cmp: sets.map(s => { const b = mp(m, s.gs), d = a != null && b != null ? a - b : null;
+      return {b, d, sig: d != null && Math.abs(d) >= s.noise, rb: raw(m, s.gs)}; })}; });
+  const top = p => p == null ? "—" : L(`상위 ${Math.max(1, Math.round(100 - p))}%`, `Top ${Math.max(1, Math.round(100 - p))}%`);
+  const delta = c => `<td class="${c.d == null ? "" : !c.sig ? "base" : c.d > 0 ? "pos" : "neg"}">${c.d == null ? "—" : `${c.d > 0 ? "▲" : "▼"} ${Math.abs(c.d).toFixed(0)}`}</td>`;
+  const growRow = r => `<tr class="${r.cmp.some(c => c.sig) ? "" : "thin"}"><td>${r.m.n}</td><td>${r.ra}<small>${top(r.a)}</small></td>${
+    r.cmp.map(c => `<td>${c.rb}<small>${top(c.b)}</small></td>${delta(c)}`).join("")}</tr>`;
+  // 판정 — 장기(그 전 전부)를 넘게 바뀐 것이 먼저, 단기만 넘은 것은 "잠깐"
+  const iP = sets.findIndex(s => s.key === "prev"), iA = sets.findIndex(s => s.key === "all");
+  const pick = (f, dir) => rows.filter(f).sort((x, y) => dir * (y.cmp[iA >= 0 ? iA : 0].d - x.cmp[iA >= 0 ? iA : 0].d)).slice(0, 4).map(r => `<b>${r.m.n}</b>`).join(" · ");
+  const sigUp = (r, i) => i >= 0 && r.cmp[i].sig && r.cmp[i].d > 0, sigDown = (r, i) => i >= 0 && r.cmp[i].sig && r.cmp[i].d < 0;
+  const lines = [
+    [L("꾸준히 좋아진 것", "Lasting gains"), pick(r => sigUp(r, iA), 1)],
+    [L("잠깐 오른 것", "Short-term gains"), pick(r => sigUp(r, iP) && !sigUp(r, iA), 1)],
+    [L("꾸준히 떨어진 것", "Lasting drops"), pick(r => sigDown(r, iA), -1)],
+    [L("잠깐 떨어진 것", "Short-term drops"), pick(r => sigDown(r, iP) && !sigDown(r, iA), -1)],
+  ].filter(l => l[1]);
+  const summary = !sets.length ? L("비교할 이전 판이 없습니다.", "No earlier games to compare with.") : lines.length
+    ? lines.map(([k, v]) => `${k}: ${v}`).join("<br>") + `<br><span class="base">${L(`꾸준히 = 그 전 전부보다도 우연 폭을 넘게 달라짐 · 잠깐 = 그 전 ${RECENT_N}판보다만 달라짐`, `Lasting = beyond the noise even against everything before · short-term = only against the previous ${RECENT_N} games`)}</span>`
+    : L(`우연 폭을 넘게 바뀐 지표는 없습니다 — ${n1}판으로는 큰 변화만 가려집니다.`, `No stat moved beyond the noise — with ${n1} games only big changes stand out.`);
+  const style = gs => Object.fromEntries(STYLE_AXES.map(a => [a.k, avg(gs.map(a.f).filter(x => x != null))]));
+  const radar = radarAxes(STYLE_AXES, [...sets.slice().reverse().map(s => ({label: s.label, color: s.color, dash: true, vals: style(s.gs)})),
+                                       {label: L(`최근 ${n1}판`, `Last ${n1} games`), color: "#3f8bee", fill: true, vals: style(recent)}]);
+  const mix = (gs, key, name) => { const c = {}; gs.forEach(g => c[key(g)] = (c[key(g)] || 0) + 1);
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${name(k)} ${Math.round(v / gs.length * 100)}%`).join(" · ") || "—"; };
+  const posName = p => POS_KO[p] ?? p, chName = c => esc(nameOf(c));
+  const gapAt = (gs, i) => { const xs = gs.filter(g => g.gaps && g.gaps.gold.length > i).map(g => g.gaps.gold[i]); return xs.length >= 3 ? avg(xs) : null; };
+  const gapCell = v => v == null ? "—" : `<span class="${v >= 0 ? "pos" : "neg"}">${v > 0 ? "+" : ""}${Math.round(v)}</span>`;
+  const date = t => { const d = new Date(t); return `${two(d.getMonth() + 1)}/${two(d.getDate())}`; };
+  const mmss = s => `${Math.floor(s / 60)}:${two(s % 60)}`;
+  const listRow = (g, i) => { const r15 = g.v; return `<tr class="rrow${g.win ? " w" : " l"}" data-i="${i}" tabindex="0" aria-expanded="${rc.open === i}">
+      <td>${date(g.t)}</td><td>${champCell(g.champ, posName(g.pos))}</td><td>${g.foe ? champCell(g.foe) : "—"}</td>
+      <td class="${g.win ? "pos" : "neg"}">${g.win ? L("승", "W") : L("패", "L")}</td><td>${mmss(g.dur)}</td>
+      <td>${r15.kills}/${r15.deaths}/${r15.assists}</td><td>${Math.round(g.lane)} : ${100 - Math.round(g.lane)}</td>
+      <td class="${r15.gold15d >= 0 ? "pos" : "neg"}">${r15.gold15d > 0 ? "+" : ""}${Math.round(r15.gold15d)}</td>
+      <td class="${r15.cs15d >= 0 ? "pos" : "neg"}">${r15.cs15d > 0 ? "+" : ""}${Math.round(r15.cs15d)}</td>
+      <td>${g.contrib.toFixed(2)}</td><td>${Math.round(r15.kp * 100)}%</td><td><b>${grade(bodyOf(g))}</b></td></tr>${rc.open === i ? recentDetail(g) : ""}`; };
+  const was = (f, s) => `${s.short} ${f(s.gs)}`;
+  const mixRow = (name, f) => `<tr><td>${name}</td><td>${f(recent)}</td>${sets.map(s => `<td>${f(s.gs)}</td>`).join("")}</tr>`;
+  main.innerHTML = `<section class="wide"><h2>${L(`최근 ${n1}판`, `Last ${n1} games`)}</h2>
+      <div class="sub">${L(`솔로랭크 15분 넘은 판 · 등수는 판마다 ${tierKo} 같은 자리 사람 중 몇 %보다 높았는지 · 그 전 ${RECENT_N}판(단기)과 그 전 전부(장기)에 함께 견줍니다`, `Solo/Duo games over 15 min · ranks are, game by game, the share of ${tierKo} players in the same role you beat · compared with both the previous ${RECENT_N} games (short term) and everything before (long term)`)}</div>
+      <div class="stats">
+        <div class="stat"><div class="k">${L(`최근 ${n1}판`, `Last ${n1} games`)}</div><div class="v ${sign(wr(recent) - 50)}">${pct(wr(recent))}</div><div class="s">${L(`${recent.filter(g => g.win).length}승 ${recent.filter(g => !g.win).length}패`, `${recent.filter(g => g.win).length}W ${recent.filter(g => !g.win).length}L`)}</div></div>
+        ${sets.map(s => `<div class="stat"><div class="k">${s.label}</div><div class="v">${pct(wr(s.gs))}</div><div class="s">${L(`${s.gs.length}판`, `${s.gs.length} games`)}</div></div>`).join("")}
+        <div class="stat"><div class="k">${L("체급", "Overall")}</div><div class="v">${grade(avg(recent.map(bodyOf)))}</div><div class="s">${sets.map(s => was(gs => grade(avg(gs.map(bodyOf))), s)).join(" · ") || "—"}</div></div>
+        <div class="stat"><div class="k">${L("캐리력", "Carry")}</div><div class="v">${Math.round(avg(recent.map(g => g.pctl)))}</div><div class="s">${sets.map(s => was(gs => Math.round(avg(gs.map(g => g.pctl))), s)).join(" · ") || "—"}</div></div>
+      </div>
+      <div class="explain">${summary}</div>
+    </section>
+    <section class="wide"><h2>${L("성장", "Growth")}</h2><div class="sub">${L(`아래 작은 글씨가 등수 · 변화는 등수 차이 · 흐린 숫자는 우연 폭(${sets.map(s => `${s.short} ±${Math.round(s.noise)}`).join(" · ")}) 안`, `Small text is the rank · change is the rank difference · faded numbers are within the noise (${sets.map(s => `${s.short} ±${Math.round(s.noise)}`).join(" · ")})`)}</div>
+      <div class="tw"><table class="growtbl"><tr><th>${L("지표", "Stat")}</th><th>${L(`최근 ${n1}판`, `Last ${n1}`)}</th>${sets.map(s => `<th>${s.label}</th><th>${L(`${s.short} 변화`, `${s.short}-term change`)}</th>`).join("")}</tr>${rows.map(growRow).join("")}</table></div></section>
+    <section class="wide"><h2>${L("플레이스타일", "Playstyle")}</h2><div class="sub">${L(`축마다 등수 (50 = ${tierKo} 같은 자리 보통) · 공격성 = 킬·솔로킬, 팀플레이 = 킬 관여·어시스트`, `Rank on each axis (50 = typical ${tierKo} in the same role) · aggression = kills & solo kills, teamplay = kill participation & assists`)}</div>
+      <div class="legend"><span><i style="border-color:#3f8bee"></i>${L(`최근 ${n1}판`, `Last ${n1} games`)}</span>${sets.map(s => `<span><i class="dash" style="border-color:${s.color}"></i>${s.label}</span>`).join("")}</div>
+      <div class="stylebody"><div>${radar}</div>
+      <div class="tw"><table class="mixtbl">
+        <tr><th></th><th>${L("최근", "Recent")}</th>${sets.map(s => `<th>${s.label}</th>`).join("")}</tr>
+        ${mixRow(L("자리", "Positions"), gs => mix(gs, g => g.pos, posName))}
+        ${mixRow(L("챔피언", "Champions"), gs => mix(gs, g => g.champ, chName))}
+        ${mixRow(L("골드 격차 10분", "Gold gap at 10"), gs => gapCell(gapAt(gs, 1)))}
+        ${mixRow(L("골드 격차 20분", "Gold gap at 20"), gs => gapCell(gapAt(gs, 3)))}
+        ${mixRow(L("골드 격차 30분", "Gold gap at 30"), gs => gapCell(gapAt(gs, 5)))}
+      </table></div></div></section>
+    <section class="wide"><h2>${L("판마다", "Game by game")}</h2><div class="sub">${L("맞은편 라이너 대비 · 줄을 누르면 그 판의 시간대별 격차와 지표 등수가 펼쳐집니다", "Against your lane opponent · click a row for that game's gaps over time and stat ranks")}</div>
+      <div class="tw"><table class="rtable">
+        <tr><th>${L("날짜", "Date")}</th><th>${L("챔피언", "Champion")}</th><th>${L("상대", "Opponent")}</th><th>${L("결과", "Result")}</th><th>${L("시간", "Length")}</th><th>K/D/A</th><th>${L("라인전", "Laning")}</th><th>${L("15분 골드", "Gold@15")}</th><th>${L("15분 CS", "CS@15")}</th><th>${L("인분", "Share")}</th><th>${L("킬 관여", "KP")}</th><th>${L("체급", "Overall")}</th></tr>
+        ${recent.map(listRow).join("")}</table></div></section>`;
+  main.querySelectorAll("tr.rrow").forEach(tr => {
+    const go = () => { const i = +tr.dataset.i; rc.open = rc.open === i ? null : i; renderRecent(); };
+    tr.onclick = go; tr.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); go(); } };
+  });
+}
+
+/** 탭 여섯 — 무엇이 궁금할 때 보는가로 나눴다.
+    요약 · 추이 · 실력 · 챔피언 · 상대·팀 은 한 번 그린 섹션을 숨겼다 보였다만 하고, 최근 20판은 화면을 새로 그린다.
+    주소 #skill 처럼 탭을 고르고, 마지막 탭을 기억한다. 예전 주소 #all 은 요약, #win&pos=… 같은 육각형 주소는 실력. */
+const TABS = ["summary", "trend", "skill", "champ", "opp", "recent"];
+const TAB_LABEL = {summary: () => L("요약", "Summary"), trend: () => L("추이", "Trend"), skill: () => L("실력", "Skill"),
+                   champ: () => L("챔피언", "Champions"), opp: () => L("상대·팀", "Opponents & team"), recent: () => L("최근 20판", "Last 20 games")};
+function currentTab(){
+  const h = location.hash.slice(1), first = h.split("&")[0];
+  if(TABS.includes(first)) return first;
+  if(/(^|&)(win|loss|pos|champ|acct)(=|&|$)/.test(h)) return "skill";
+  if(first === "all") return "summary";
+  const saved = store.get("meTab");
+  return TABS.includes(saved) ? saved : "summary";
+}
+const isRecent = () => currentTab() === "recent";
+let drawn = false;          // 요약~상대·팀 섹션이 main 에 그려져 있나 (최근 20판이 main 을 갈아 끼운다)
+function show(){
+  const tab = currentTab();
+  store.set("meTab", tab);
+  document.querySelectorAll("nav.tabs a").forEach(a => { a.textContent = TAB_LABEL[a.dataset.view](); a.setAttribute("aria-current", a.dataset.view === tab ? "page" : "false"); });
+  const main = document.getElementById("main");
+  if(tab === "recent"){ drawn = false; main.removeAttribute("data-tab"); renderRecent(); window.scrollTo(0, 0); return; }
+  if(!drawn){ render(); renderTier(); renderForm(); renderHex(); renderCurve(); drawn = true; }
+  main.dataset.tab = tab;
+  window.scrollTo(0, 0);
+}
+addEventListener("hashchange", show);
+/** 기준 티어 — 머리 줄 한 곳에서. 한눈에 · 승패 육각형 · 시간대별 격차 · 최근 20판이 같이 바뀐다 */
+function initTierSel(){
+  const sel = document.getElementById("tierSel");
+  sel.setAttribute("aria-label", L("기준 티어", "Tier"));
+  sel.title = L("한눈에 · 승패 육각형 · 시간대별 격차 · 최근 20판이 견주는 티어", "The tier that At a glance, the win/loss hexagon, gaps over time and Last 20 games compare against");
+  sel.innerHTML = Object.entries(TIER_KO).map(([t, l]) => `<option value="${t}"${t === hx.tier ? " selected" : ""}>${L(`${l} 기준`, `vs ${l}`)}</option>`).join("");
+  sel.onchange = e => {
+    hx.tier = e.target.value; store.set("hexTier", hx.tier);
+    if(isRecent()) renderRecent(); else { renderHex(); renderForm(); renderCurve(); }
+  };
 }
 
 // ---------------------------------------------------------------- 승패 육각형
@@ -418,8 +1265,6 @@ function renderHex(){
         opt(p, `${POS_KO[p] ?? p} ${c}`, p === hx.pos)).join("")}</select>
       <select id="hexChamp" aria-label="${L("챔피언", "Champion")}">${opt("", L("챔피언 전체", "All champions"), !hx.champ)}${champs.map(([c, k]) =>
         opt(c, L(`${nameOf(c)} ${k}판${k < H.minGames ? " · 10판 미만" : ""}`, `${nameOf(c)} ${k} games${k < H.minGames ? " · under 10" : ""}`), c === hx.champ)).join("")}</select>
-      <select id="hexTier" aria-label="${L("비교할 티어", "Tier to compare")}"${cInfo && hx.mode === "all" ? ` disabled title="${L("챔피언 전체 보기는 다섯 티어를 합친 값이라 티어가 바꾸는 게 없습니다", "With a champion selected, the All view pools all five tiers, so the tier changes nothing")}"` : ""}>${Object.entries(TIER_KO).map(([t, l]) =>
-        opt(t, L(`${l} 기준`, `vs ${l}`), t === hx.tier)).join("")}</select>
     </div>
     ${body}
     <div class="foot" style="margin-top:10px">${L(`기준은 ${H.patch} 패치 티어마다 1,000판에서 잰 값입니다. 앞선 비율은 패치·MMR이 같은 맞은편과 비교해서 옛 판도 그대로 씁니다.
@@ -432,7 +1277,6 @@ function renderHex(){
             "In the All view the gray line is 50 regardless of tier; the tier changes the table's averages.")}</div>`;
 
   box.querySelectorAll(".seg button").forEach(b => b.onclick = () => { hx.mode = b.dataset.mode; renderHex(); });
-  box.querySelector("#hexTier").onchange = e => { hx.tier = e.target.value; store.set("hexTier", hx.tier); renderHex(); };
   const acct = box.querySelector("#hexAcct");
   if(acct) acct.onchange = e => { hx.acct = e.target.value; renderHex(); };
   box.querySelector("#hexPos").onchange = e => { hx.pos = e.target.value; renderHex(); };
@@ -449,9 +1293,13 @@ function renderHex(){
        Run <code>4_MyRecord.cmd</code> and enter your Riot ID to fetch them.`)}</div>`;
     return;
   }
-  render();
+  initTierSel();
+  show();
+  fetch("/api/me/tier").then(r => r.json()).then(d => { TG = d; renderTier(); }).catch(() => {});
+  fetch("/api/me/form").then(r => r.json()).then(d => { FM = d; renderForm(); if(isRecent()) renderRecent(); }).catch(e => console.error(e));
+  fetch("/api/me/curve").then(r => r.json()).then(d => { CV = d; renderCurve(); }).catch(e => console.error(e));
   try{ H = await fetch(`/api/me/hexagon?lang=${LANG}`).then(r => r.json()); }catch{ H = null; }
-  if(H?.available && !H.tiers[hx.tier]) hx.tier = "SILVER";
+  if(H?.available && !H.tiers[hx.tier]){ hx.tier = "SILVER"; initTierSel(); }
   renderHex();
 })();
 </script>

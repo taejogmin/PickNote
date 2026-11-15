@@ -249,6 +249,11 @@ class RiotClient:
                f"{quote(game_name)}/{quote(tag_line)}")
         return self.get(url)
 
+    def league_by_puuid(self, puuid: str, platform: str | None = None):
+        """그 계정의 지금 랭크 (큐마다 한 줄 — 티어·디비전·LP·이번 시즌 승패). 지난 기록은 API에 없다."""
+        url = f"https://{platform or rg.platform(self.server)}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
+        return self.get(url) or []
+
     def match(self, match_id: str, region: str | None = None):
         # 매치 ID 앞부분이 서버다 — 다른 서버 계정의 경기도 맞는 곳에 묻는다
         url = f"https://{region or rg.region_of_match(match_id)}.api.riotgames.com/lol/match/v5/matches/{match_id}"

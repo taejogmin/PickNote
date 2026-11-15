@@ -14,6 +14,8 @@
 from __future__ import annotations
 
 import argparse
+import gzip
+import hashlib
 import json
 import random
 import sqlite3
@@ -27,7 +29,7 @@ import numpy as np
 
 from src.region import db_path, region_of_match
 from src.riot.client import RiotClient
-from src.riot.me import DB as ME_DB
+from src.riot.me import DB as ME_DB, IDENTITY
 
 try:
     sys.stdout.reconfigure(errors="replace")
@@ -63,11 +65,22 @@ CREATE TABLE IF NOT EXISTS person (
     PRIMARY KEY (match_id, team, position)
 );
 CREATE TABLE IF NOT EXISTS seen (match_id TEXT PRIMARY KEY);   -- 받았거나 못 쓰는 판
+CREATE TABLE IF NOT EXISTS curve (match_id TEXT PRIMARY KEY, curve TEXT);   -- 표본 판의 5분마다 숫자 (시간대별 격차)
+CREATE TABLE IF NOT EXISTS raw_timeline (match_id TEXT PRIMARY KEY, raw BLOB NOT NULL);   -- 표본 타임라인 원본 (gzip, puuid 지움)
+CREATE TABLE IF NOT EXISTS raw_match (match_id TEXT PRIMARY KEY, raw BLOB NOT NULL);      -- 표본 경기 원본 (gzip, 신원 지움)
 """
 MY_SCHEMA = """
 CREATE TABLE IF NOT EXISTS my_timeline (
     match_id TEXT PRIMARY KEY,
     frames   TEXT                       -- 참가자 번호 → 15분 숫자 (JSON). 15분 전에 끝났으면 NULL
+);
+CREATE TABLE IF NOT EXISTS my_timeline_raw (
+    match_id TEXT PRIMARY KEY,
+    raw      BLOB NOT NULL              -- 타임라인 원본 JSON (gzip). 다른 사람의 puuid는 지웠다
+);
+CREATE TABLE IF NOT EXISTS my_curve (
+    match_id TEXT PRIMARY KEY,
+    curve    TEXT                       -- 참가자 번호 → {cs, gold, xp: [5분, 10분, …]} (JSON). 시간대별 격차
 );
 """
 
@@ -101,6 +114,76 @@ def at_minute(line: dict) -> dict[int, dict] | None:
     return out
 
 
+def pack(obj) -> bytes:
+    return gzip.compress(json.dumps(obj, separators=(",", ":")).encode())
+
+
+def scrub_timeline(line: dict, label=lambda puuid: None) -> dict:
+    """타임라인의 puuid를 지운다. label(puuid)가 값을 주면(내 판의 "me"·같은 팀 해시) 그걸로 바꾼다."""
+    meta = line.get("metadata", {})
+    if "participants" in meta:
+        meta["participants"] = [label(x) for x in meta["participants"]]
+    for p in line.get("info", {}).get("participants", []) or []:
+        if "puuid" in p:
+            p["puuid"] = label(p["puuid"])
+    return line
+
+
+def scrub_match(match: dict) -> dict:
+    """표본 경기 — 열 명 모두 신원을 지운다 (표본에는 내가 없다)."""
+    for p in match.get("info", {}).get("participants", []):
+        for k in IDENTITY:
+            p.pop(k, None)
+    meta = match.get("metadata", {})
+    if "participants" in meta:
+        meta["participants"] = [None] * len(meta["participants"])
+    return match
+
+
+def my_labeler(conn):
+    """내 판 타임라인용 이름표를 만드는 함수 — label_for(match_id)(puuid).
+    내 계정은 "me", 같은 팀은 경기 원본에 이미 있는 해시(소금 + puuid)와 같을 때만 그 해시, 상대 팀은 지운다."""
+    mine = {r[0] for r in conn.execute("SELECT puuid FROM account")}
+    row = conn.execute("SELECT value FROM me WHERE key = 'salt'").fetchone()
+    salt = row[0] if row else ""
+
+    def label_for(match_id: str):
+        row = conn.execute("SELECT raw FROM my_match WHERE match_id = ?", (match_id,)).fetchone()
+        mates = set()
+        if row:
+            info = json.loads(gzip.decompress(row[0])).get("info", {})
+            mates = {p["mate"] for p in info.get("participants", []) if p.get("mate")}
+
+        def label(puuid):
+            if not puuid:
+                return None
+            if puuid in mine:
+                return "me"
+            h = hashlib.sha256((salt + puuid).encode()).hexdigest()[:16]
+            return h if h in mates else None
+        return label
+    return label_for
+
+
+CURVE_MINUTES = (5, 10, 15, 20, 25, 30)
+
+
+def curve_of(line: dict) -> dict[str, dict] | None:
+    """참가자 번호 → {"cs": [...], "gold": [...], "xp": [...]} — 5분마다, 그 판이 간 데까지."""
+    frames = line.get("info", {}).get("frames", [])
+    mins = [m for m in CURVE_MINUTES if m < len(frames)]
+    if not mins:
+        return None
+    out: dict = {}
+    for m in mins:
+        for key, p in frames[m]["participantFrames"].items():
+            row = out.setdefault(key, {"cs": [], "gold": [], "xp": []})
+            row["cs"].append(p.get("minionsKilled", 0) + p.get("jungleMinionsKilled", 0))
+            row["gold"].append(p.get("totalGold", 0))
+            row["xp"].append(p.get("xp", 0))
+    return out
+
+
 def end_stats(p: dict, team_kills: int, minutes: float) -> dict:
     c = p.get("challenges", {})
     return {"gold": p.get("goldEarned", 0) / minutes,
@@ -110,7 +193,7 @@ def end_stats(p: dict, team_kills: int, minutes: float) -> dict:
             "kp": (p.get("kills", 0) + p.get("assists", 0)) / max(team_kills, 1),
             "deaths": p.get("deaths", 0), "kills": p.get("kills", 0), "assists": p.get("assists", 0),
             "vision": p.get("visionScore", 0) / minutes, "ctrl": p.get("visionWardsBoughtInGame", 0),
-            "solo": c.get("soloKills", 0)}
+            "solo": c.get("soloKills", 0), "min": round(minutes, 3)}
 
 
 def people(match: dict, line: dict) -> list[dict] | None:
@@ -147,14 +230,20 @@ def my_timelines(conn, client: RiotClient, limit: int = 0) -> int:
         (MIN_DURATION_S,)) if r[0] not in have]
     if limit:
         ids = ids[:limit]
+    label_for = my_labeler(conn)
     print(f"내 판 타임라인 {len(ids):,}건을 받습니다", flush=True)
     for i, match_id in enumerate(ids, 1):
         line = timeline(client, match_id)
         frames = at_minute(line) if line else None
         conn.execute("INSERT OR REPLACE INTO my_timeline VALUES (?, ?)",
                      (match_id, json.dumps(frames, separators=(",", ":")) if frames else None))
+        cv = curve_of(line) if line else None
+        if cv:
+            conn.execute("INSERT OR REPLACE INTO my_curve VALUES (?, ?)", (match_id, json.dumps(cv, separators=(",", ":"))))
+        if line:
+            conn.execute("INSERT OR REPLACE INTO my_timeline_raw VALUES (?, ?)", (match_id, pack(scrub_timeline(line, label_for(match_id)))))
+        conn.commit()            # 판마다 — 위와 같은 까닭
         if i % 20 == 0 or i == len(ids):
-            conn.commit()
             print(f"  {i:,}/{len(ids):,}", flush=True)
     conn.commit()
     return len(ids)
@@ -162,6 +251,49 @@ def my_timelines(conn, client: RiotClient, limit: int = 0) -> int:
 
 def cmd_timelines(args) -> None:
     my_timelines(sqlite3.connect(ME_DB), RiotClient(wait_for_new_key=True), args.limit)
+
+
+def backfill_curves(client: RiotClient, limit: int = 0, sample: bool = True, conn=None) -> None:
+    """타임라인 원본이 없는 판을 다시 받아 원본과 5분마다 숫자를 둔다. 내 판(me.db) 다음 표본(benchmark.db). 끊겨도 이어 받는다.
+    내 기록 갱신은 sample=False로 내 판만 — 처음 한 번만 예전 판 수만큼 요청하고, 그 뒤로는 새 판에 같이 받아 0건이다."""
+    jobs = []
+    me = conn or sqlite3.connect(ME_DB)
+    me.executescript(MY_SCHEMA)
+    have = {r[0] for r in me.execute("SELECT match_id FROM my_timeline_raw")}
+    jobs.append(("내 판", me, "my", [r[0] for r in me.execute(
+        "SELECT match_id FROM my_match WHERE queue = 420 AND duration_s >= ? ORDER BY created_ms DESC",
+        (MIN_DURATION_S,)) if r[0] not in have]))
+    if sample and BENCH_DB.exists():
+        bench = sqlite3.connect(BENCH_DB)
+        bench.executescript(SCHEMA)
+        have = {r[0] for r in bench.execute("SELECT match_id FROM raw_timeline")}
+        jobs.append(("표본", bench, "sample", [r[0] for r in bench.execute(
+            "SELECT DISTINCT match_id FROM person ORDER BY match_id") if r[0] not in have]))
+    for name, conn, table, ids in jobs:
+        if limit:
+            ids = ids[:limit]
+        if not ids:
+            continue
+        print(f"{name} 타임라인 {len(ids):,}건을 통째로 받습니다", flush=True)
+        start = time.time()
+        label_for = my_labeler(conn) if table == "my" else (lambda _m: (lambda puuid: None))
+        for i, match_id in enumerate(ids, 1):
+            line = timeline(client, match_id)
+            cv = curve_of(line) if line else None
+            conn.execute(f"INSERT OR REPLACE INTO {'my_curve' if table == 'my' else 'curve'} VALUES (?, ?)",
+                         (match_id, json.dumps(cv, separators=(",", ":")) if cv else None))
+            if line:
+                conn.execute(f"INSERT OR REPLACE INTO {'my_timeline_raw' if table == 'my' else 'raw_timeline'} VALUES (?, ?)",
+                             (match_id, pack(scrub_timeline(line, label_for(match_id)))))
+            conn.commit()        # 판마다 — 원본이 커서 모아 두면 쓰기 잠금이 길어져 화면이 내 기록을 못 읽는다
+            if i % 50 == 0 or i == len(ids):
+                left = (len(ids) - i) * (time.time() - start) / i / 60
+                print(f"  {name} {i:,}/{len(ids):,} · 남은 약 {left:.0f}분", flush=True)
+        conn.commit()
+
+
+def cmd_curves(args) -> None:
+    backfill_curves(RiotClient(wait_for_new_key=True), args.limit)
 
 
 def candidates() -> dict[str, list[str]]:
@@ -204,6 +336,10 @@ def cmd_sample(args) -> None:
             rows = people(match, line) if match and line else None
             conn.execute("INSERT OR IGNORE INTO seen VALUES (?)", (match_id,))
             if rows:
+                cv = curve_of(line)
+                conn.execute("INSERT OR REPLACE INTO curve VALUES (?, ?)", (match_id, json.dumps(cv, separators=(",", ":")) if cv else None))
+                conn.execute("INSERT OR REPLACE INTO raw_timeline VALUES (?, ?)", (match_id, pack(scrub_timeline(line))))
+                conn.execute("INSERT OR REPLACE INTO raw_match VALUES (?, ?)", (match_id, pack(scrub_match(match))))
                 conn.executemany(
                     "INSERT OR REPLACE INTO person VALUES (?, ?, ?, ?, ?, ?, ?)",
                     [(match_id, tier, r["position"], r["team"], r["win"], r["champion"],
@@ -266,7 +402,213 @@ def champ_table(conn) -> dict:
     return {"posPooled": pooled, "champs": champs}
 
 
+# ---------------------------------------------------------------- 한눈에 지표 (라인전 · 캐리력 · 인분 · 멘탈)
+# mine.py의 _form()과 같은 식이어야 기준과 비교된다.
+
+def lane_share(me: dict, foe: dict) -> float:
+    """15분 골드 몫과 경험치 몫의 평균 (0~100). 50이 맞은편과 같음."""
+    g = me["gold15"] / max(me["gold15"] + foe["gold15"], 1)
+    x = me["xp15"] / max(me["xp15"] + foe["xp15"], 1)
+    return 50 * (g + x)
+
+
+def team_shares(s: dict, team: list[dict]) -> tuple[float, float, float]:
+    """팀 안에서 딜 몫 · 골드 몫 · 킬 관여. team에는 나도 들어 있다."""
+    return (s["dmg"] / max(sum(t["dmg"] for t in team), 1e-9),
+            s["gold"] / max(sum(t["gold"] for t in team), 1e-9),
+            s["kp"])
+
+
+# 지표 칸 — 판 하나에서 한 사람의 값. s·team·foe는 people()의 stats 꼴(15분 값 포함), minutes는 경기 길이(분)
+TILE_LOWER = {"deaths"}                       # 적을수록 좋은 것
+
+
+def tile_values(s: dict, team: list[dict], foe: dict, minutes: float | None) -> dict:
+    team_k15 = max(sum(t["kills15"] for t in team), 1)
+    out = {
+        "kda": (s["kills"] + s["assists"]) / max(s["deaths"], 1),
+        "lane": lane_share(s, foe),
+        "cs15": s["cs15"], "gold15": s["gold15"], "xp15": s["xp15"],
+        "cs15d": s["cs15"] - foe["cs15"], "gold15d": s["gold15"] - foe["gold15"], "xp15d": s["xp15"] - foe["xp15"],
+        "kp15": (s["kills15"] + s["assists15"]) / team_k15,
+        "kp": s["kp"], "kills": s["kills"], "assists": s["assists"], "deaths": s["deaths"],
+        "solo": s["solo"], "soloShare": s["solo"] / max(s["kills"], 1),
+        "cs": s["cs"], "gold": s["gold"], "dmg": s["dmg"], "taken": s["taken"],
+        "dmgPerGold": s["dmg"] / max(s["gold"], 1e-9),
+        "dmgShare": s["dmg"] / max(sum(t["dmg"] for t in team), 1e-9),
+        "vision": s["vision"], "ctrl": s["ctrl"],
+    }
+    if minutes:
+        out["dmgPerDeath"] = s["dmg"] * minutes / max(s["deaths"], 1)
+        out["takenPerDeath"] = s["taken"] * minutes / max(s["deaths"], 1)
+    return out
+
+
+def mates_share(team: list[dict], rivals: list[dict]) -> float:
+    """팀운 — 내 자리를 뺀 팀원 넷과 상대 넷의 15분 골드 몫·경험치 몫 평균 (50이 대등)."""
+    g = sum(t["gold15"] for t in team) / max(sum(t["gold15"] for t in team + rivals), 1)
+    x = sum(t["xp15"] for t in team) / max(sum(t["xp15"] for t in team + rivals), 1)
+    return 50 * (g + x)
+
+
+def snowball(s: dict, foe: dict, win: int) -> int | None:
+    """라인전을 이긴 판에서 끝까지 맞은편보다 골드가 많고 이겼나. 라인전 못 이긴 판은 None."""
+    if lane_share(s, foe) <= 50:
+        return None
+    return int(bool(win) and s["gold"] > foe["gold"])
+
+
+def _durations(ids: list[str]) -> dict[str, float]:
+    """표본 경기 길이(분) — 예전 표본은 stats에 없어 수집 DB에서 찾는다."""
+    if not MATCHES_DB.exists():
+        return {}
+    conn = sqlite3.connect(f"file:{quote(MATCHES_DB.as_posix())}?mode=ro", uri=True)
+    try:
+        out = {}
+        for i in range(0, len(ids), 900):
+            part = ids[i:i + 900]
+            out.update({m: d / 60 for m, d in conn.execute(
+                f"SELECT match_id, duration_s FROM match WHERE match_id IN ({','.join('?' * len(part))})", part)})
+        return out
+    finally:
+        conn.close()
+
+
+
+def form_table(conn) -> dict:
+    """자리마다 팀 안 몫의 평균(인분의 1.0)과 기여도 분위수(캐리력), 티어·자리마다 멘탈 세 비율의 기준."""
+    seats: dict = defaultdict(dict)
+    for match_id, tier, pos, team, win, stats in conn.execute(
+            "SELECT match_id, tier, position, team, win, stats FROM person"):
+        seats[match_id][team, pos] = (tier, win, json.loads(stats))
+    games = [g for g in seats.values() if len(g) == 10]
+    shares: dict = defaultdict(list)
+    for g in games:
+        for (team, pos), (_t, _w, s) in g.items():
+            shares[pos].append(team_shares(s, [v[2] for (t, _p), v in g.items() if t == team]))
+    avg = {pos: [float(np.mean([r[k] for r in rows])) for k in range(3)] for pos, rows in shares.items()}
+    contrib = lambda pos, sh: sum(sh[k] / avg[pos][k] for k in range(3)) / 3
+    cq = {pos: [round(float(q), 4) for q in np.quantile([contrib(pos, r) for r in rows], np.linspace(0, 1, 101))]
+          for pos, rows in shares.items()}
+
+    rates: dict = defaultdict(lambda: defaultdict(lambda: {"lost": [0, 0], "won": [0, 0], "behind": [0, 0]}))
+    for g in games:
+        for (team, pos), (tier, win, s) in g.items():
+            foe = g[300 - team, pos][2]
+            lane = lane_share(s, foe)
+            c = contrib(pos, team_shares(s, [v[2] for (t, _p), v in g.items() if t == team]))
+            mates = sum(v[2]["gold15"] for (t, q), v in g.items() if t == team and q != pos)
+            rivals = sum(v[2]["gold15"] for (t, q), v in g.items() if t != team and q != pos)
+            r = rates[tier][pos]
+            if lane < 50:                                   # 라인전 지고 이긴 판
+                r["lost"][0] += 1; r["lost"][1] += win
+            elif lane > 50:                                 # 라인전 이기고 진 판
+                r["won"][0] += 1; r["won"][1] += 1 - win
+            if mates < rivals:                              # 팀원 넷이 15분에 밀릴 때 내가 끝까지 잘해서 이긴 판
+                r["behind"][0] += 1; r["behind"][1] += int(win and lane > 50 and c >= 1)
+    tiers = {t: {pos: {k: [round(100 * w / n, 1) if n else None, n] for k, (n, w) in v.items()}
+                 for pos, v in by.items()} for t, by in rates.items()}
+    # 지표 칸 분위수 (티어 · 자리 · 지표마다 5% 간격 21개) · 스노우볼 기준
+    minutes = _durations(list(seats))
+    vals: dict = defaultdict(lambda: defaultdict(list))
+    snow: dict = defaultdict(lambda: [0, 0])
+    for match_id, g in seats.items():
+        if len(g) != 10:
+            continue
+        for (team, pos), (tier, win, st) in g.items():
+            foe = g[300 - team, pos][2]
+            mine = [v[2] for (t, _p), v in g.items() if t == team]
+            m = st.get("min") or minutes.get(match_id)
+            row = tile_values(st, mine, foe, m)
+            row["mates"] = mates_share([v[2] for (t, q), v in g.items() if t == team and q != pos],
+                                       [v[2] for (t, q), v in g.items() if t != team and q != pos])
+            for k, v in row.items():
+                vals[tier, pos][k].append(v)
+            sb = snowball(st, foe, win)
+            if sb is not None:
+                snow[tier, pos][0] += 1; snow[tier, pos][1] += sb
+    grid = np.linspace(0, 1, 21)
+    q: dict = defaultdict(dict)
+    for (tier, pos), by in vals.items():
+        q[tier][pos] = {k: [round(float(x), 4) for x in np.quantile(v, grid)] for k, v in by.items()}
+    for (tier, pos), (n, w) in snow.items():
+        tiers[tier][pos]["snow"] = [round(100 * w / n, 1) if n else None, n]
+    return {"posShare": {pos: [round(a, 4) for a in v] for pos, v in avg.items()}, "contribQ": cq, "tiers": tiers,
+            "q": q, "lower": sorted(TILE_LOWER)}
+
+
+
+# ---------------------------------------------------------------- 시간대별 격차 (맞은편과 CS · 골드 · 경험치 차이, 5분마다)
+CURVE_KEYS = ("cs", "gold", "xp")
+
+
+def seat_curves(curve: dict, seats: dict) -> dict | None:
+    """참가자 번호 → (팀, 자리). 표본에는 번호가 없어 15분 숫자(골드·경험치·CS)가 같은 사람으로 잇는다."""
+    out = {}
+    for pid, c in curve.items():
+        if len(c["gold"]) < 3:
+            return None
+        key = (c["gold"][2], c["xp"][2], c["cs"][2])
+        hit = [seat for seat, st in seats.items() if (st["gold15"], st["xp15"], st["cs15"]) == key]
+        if len(hit) != 1:
+            return None
+        out[hit[0]] = c
+    return out if len(out) == 10 else None
+
+
+def curve_gaps(by_seat: dict, team: int, pos: str) -> dict:
+    """그 자리의 나 − 맞은편, 5분마다 (그 판이 간 데까지)."""
+    me, foe = by_seat[team, pos], by_seat[300 - team, pos]
+    return {k: [a - b for a, b in zip(me[k], foe[k])] for k in CURVE_KEYS}
+
+
+def curve_table(conn) -> dict:
+    """티어·자리마다, 그리고 챔피언마다(다섯 티어 합) 5분마다 평균 격차 — 전체 · 이긴 판 · 진 판."""
+    curves = dict(conn.execute("SELECT match_id, curve FROM curve WHERE curve IS NOT NULL"))
+    seats: dict = defaultdict(dict)
+    for match_id, tier, pos, team, win, champ, stats in conn.execute(
+            "SELECT match_id, tier, position, team, win, champion, stats FROM person"):
+        if match_id in curves:
+            seats[match_id][team, pos] = (tier, win, champ, json.loads(stats))
+    n_min = len(CURVE_MINUTES)
+    acc = defaultdict(lambda: {side: {k: [[0.0, 0] for _ in range(n_min)] for k in CURVE_KEYS} for side in ("all", "win", "loss")})
+    used = 0
+    for match_id, g in seats.items():
+        if len(g) != 10:
+            continue
+        by_seat = seat_curves(json.loads(curves[match_id]), {seat: v[3] for seat, v in g.items()})
+        if by_seat is None:
+            continue
+        used += 1
+        for (team, pos), (tier, win, champ, _st) in g.items():
+            gaps = curve_gaps(by_seat, team, pos)
+            for key in ((tier, pos), ("*", pos), ("champ", pos, champ)):
+                for side in ("all", "win" if win else "loss"):
+                    for k in CURVE_KEYS:
+                        for i, v in enumerate(gaps[k]):
+                            cell = acc[key][side][k][i]
+                            cell[0] += v; cell[1] += 1
+
+    def pack(block: dict, need: int = 1) -> dict:
+        return {side: {**{k: [round(t / n, 2) if n >= need else None for t, n in cells] for k, cells in by.items()},
+                       "n": [n for _t, n in by["cs"]]} for side, by in block.items()}
+
+    tiers: dict = defaultdict(dict)
+    pooled, champs = {}, defaultdict(dict)
+    for key, block in acc.items():
+        if key[0] == "*":
+            pooled[key[1]] = pack(block)
+        elif key[0] == "champ":
+            if block["all"]["cs"][0][1] >= CHAMP_MIN:          # 5분 판 수가 기준 — 늦은 시간은 판마다 다시 거른다
+                champs[key[1]][str(key[2])] = pack(block, need=CHAMP_MIN // 2)
+        else:
+            tiers[key[0]][key[1]] = pack(block)
+    return {"minutes": list(CURVE_MINUTES), "games": used, "tiers": tiers, "posPooled": pooled, "champs": champs}
+
+
+
 def cmd_table(_args) -> None:
+    sqlite3.connect(BENCH_DB).executescript(SCHEMA)          # curve 표가 없던 예전 파일
     conn = sqlite3.connect(f"file:{BENCH_DB}?mode=ro", uri=True)
     pairs: dict = defaultdict(dict)
     means: dict = defaultdict(list)
@@ -295,7 +637,8 @@ def cmd_table(_args) -> None:
                                          for side, a in avg.items()}}
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({"patch": PATCH, "minute": MINUTE, "made": time.strftime("%Y-%m-%d %H:%M"),
-                               "tiers": table, "champMin": CHAMP_MIN, **champ_table(conn)},
+                               "tiers": table, "champMin": CHAMP_MIN, **champ_table(conn),
+                               "form": form_table(conn), "curve": curve_table(conn)},
                               ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"→ {OUT}")
     for tier in TIERS:
@@ -316,7 +659,8 @@ def cmd_all(args) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="승패 육각형 기준 데이터")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name, func in (("timelines", cmd_timelines), ("sample", cmd_sample), ("table", cmd_table), ("all", cmd_all)):
+    for name, func in (("timelines", cmd_timelines), ("sample", cmd_sample), ("table", cmd_table), ("all", cmd_all),
+                       ("curves", cmd_curves)):
         p = sub.add_parser(name)
         p.add_argument("--per-tier", type=int, default=PER_TIER)
         p.add_argument("--limit", type=int, default=0, help="내 판을 이만큼만 (시험용)")

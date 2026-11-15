@@ -62,6 +62,17 @@ CREATE TABLE IF NOT EXISTS my_match (
     raw         BLOB NOT NULL           -- 경기 원본 JSON (gzip). 다른 사람의 신원은 지웠다
 );
 CREATE INDEX IF NOT EXISTS my_match_time ON my_match(created_ms);
+CREATE TABLE IF NOT EXISTS rank_snapshot (   -- 갱신할 때마다 찍은 지금 랭크. 지난 티어는 API가 주지 않아 이것만이 진짜 점이다
+    account  TEXT NOT NULL,
+    ts_ms    INTEGER NOT NULL,
+    queue    TEXT NOT NULL,           -- RANKED_SOLO_5x5 · RANKED_FLEX_SR
+    tier     TEXT NOT NULL,
+    division TEXT NOT NULL,
+    lp       INTEGER NOT NULL,
+    wins     INTEGER NOT NULL,
+    losses   INTEGER NOT NULL,
+    PRIMARY KEY (account, queue, ts_ms)
+);
 CREATE TABLE IF NOT EXISTS account (    -- 내 계정들
     puuid    TEXT PRIMARY KEY,
     riot_id  TEXT NOT NULL,
@@ -112,6 +123,7 @@ def rekey(conn, old: str, new: str) -> None:
         conn.execute("DELETE FROM account WHERE puuid = ?", (new,))
         conn.execute("UPDATE account SET puuid = ? WHERE puuid = ?", (new, old))
     conn.execute("UPDATE my_match SET account = ? WHERE account = ?", (new, old))
+    conn.execute("UPDATE OR IGNORE rank_snapshot SET account = ? WHERE account = ?", (new, old))
     if get_me(conn, "puuid") == old:
         set_me(conn, "puuid", new)
     conn.commit()
@@ -127,6 +139,44 @@ def refresh_puuid(conn, client: RiotClient, puuid: str, riot_id: str) -> str:
     print(L("  API 키가 바뀌어 계정 ID를 새로 받았습니다.", "  The API key changed, so the account ID was looked up again."))
     rekey(conn, puuid, account["puuid"])
     return account["puuid"]
+
+
+RANK_QUEUES = ("RANKED_SOLO_5x5", "RANKED_FLEX_SR")
+
+
+def snapshot_ranks(conn, clients: dict | None = None) -> None:
+    """계정마다 지금 랭크를 찍는다 (그 계정의 서버에). 바로 앞 기록과 같으면 (판을 안 했으면) 새로 넣지 않는다."""
+    clients = clients if clients is not None else {}
+    servers = account_servers(conn)
+    now = int(time.time() * 1000)
+    for puuid, riot_id in accounts(conn):
+        server = servers.get(puuid, rg.DEFAULT)
+        client = clients.setdefault(server, RiotClient(server=server))
+        try:
+            try:
+                entries = client.league_by_puuid(puuid)
+            except StalePuuid:
+                puuid = refresh_puuid(conn, client, puuid, riot_id)
+                entries = client.league_by_puuid(puuid)
+        except Exception as e:          # 랭크를 못 받아도 경기 갱신은 끝까지 간다
+            print(L(f"  {riot_id} 랭크를 받지 못했습니다: {e}", f"  Couldn't get the rank for {riot_id}: {e}"))
+            continue
+        for e in entries:
+            if e.get("queueType") not in RANK_QUEUES:
+                continue
+            row = (e["tier"], e.get("rank", ""), int(e.get("leaguePoints", 0)),
+                   int(e.get("wins", 0)), int(e.get("losses", 0)))
+            last = conn.execute("SELECT tier, division, lp, wins, losses FROM rank_snapshot "
+                                "WHERE account = ? AND queue = ? ORDER BY ts_ms DESC LIMIT 1",
+                                (puuid, e["queueType"])).fetchone()
+            if last == row:
+                continue
+            conn.execute("INSERT OR REPLACE INTO rank_snapshot VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                         (puuid, now, e["queueType"], *row))
+            if e["queueType"] == "RANKED_SOLO_5x5":
+                print(L(f"  {riot_id} 솔로랭크 {row[0].title()} {row[1]} {row[2]} LP · {row[3]}승 {row[4]}패",
+                        f"  {riot_id} Solo/Duo {row[0].title()} {row[1]} {row[2]} LP · {row[3]}W {row[4]}L"))
+    conn.commit()
 
 
 def get_me(conn, key: str) -> str | None:
@@ -276,6 +326,7 @@ def cmd_fetch(args) -> None:
     n = pull(conn, client, puuid, get_me(conn, "salt"), since_s=None)
     print(L(f"\n{n:,}경기 저장 ({(time.time() - start) / 60:.0f}분) → {DB}",
             f"\nSaved {n:,} games ({(time.time() - start) / 60:.0f} min) → {DB}"))
+    snapshot_ranks(conn, {server: client})
     print_stats(conn)
 
 
@@ -299,9 +350,12 @@ def cmd_update(_args) -> None:
             puuid = refresh_puuid(conn, client, puuid, riot_id)
             n = pull(conn, client, puuid, get_me(conn, "salt"), since_s=since)
         print(L(f"  새 경기 {n:,}개 저장", f"  Saved {n:,} new games"))
+    snapshot_ranks(conn, clients)       # 티어 그래프의 진짜 점 — 계정마다 요청 하나
     # 승패 육각형의 라인전 축 — 새 판 수만큼이라 수집기와 같이 돌아도 된다
     from src.riot.benchmark import my_timelines
     my_timelines(conn, client)         # 타임라인은 매치 ID로 서버를 알아서 어느 client든 된다
+    from src.riot.benchmark import backfill_curves
+    backfill_curves(client, sample=False, conn=conn)   # 시간대별 격차 — 예전 판의 5분마다 숫자 (처음 한 번)
 
 
 def print_stats(conn) -> None:

@@ -440,6 +440,32 @@ def pull_official_model() -> None:
             f"  Switched to the official model — {meta['matches']:,} games · trained {meta.get('trained_at', '?')} (old one kept as draft.prev)"))
 
 
+def pull_official_benchmark() -> None:
+    """내 기록의 비교 기준(models/benchmark.json)을 이 버전 것으로 맞춘다.
+    apply_release는 models/를 건드리지 않아서, 새 버전이 기준을 늘려도(한눈에 · 시간대별 격차) 여기서 받아야 한다.
+    내가 표본을 받아 직접 만든 기준이 더 새것이면 그대로 둔다. 바꿀 땐 옛것을 benchmark.prev.json 으로 남긴다."""
+    url = f"https://raw.githubusercontent.com/{REPO}/v{version()}/models/benchmark.json"
+    local = ROOT / "models" / "benchmark.json"
+    try:
+        r = requests.get(url, timeout=60)
+        r.raise_for_status()
+        made = r.json().get("made", "")
+    except (requests.RequestException, ValueError):
+        print(L("  내 기록 기준을 확인하지 못했습니다. 건너뜁니다.", "  Couldn't check the My record baseline. Skipping."))
+        return
+    try:
+        mine = json.loads(local.read_text(encoding="utf-8")).get("made", "")
+    except (OSError, ValueError):
+        mine = ""
+    if made <= mine:                         # "2026-11-15 16:03" 꼴이라 글자 비교가 곧 시각 비교
+        return
+    local.parent.mkdir(parents=True, exist_ok=True)
+    if local.exists():
+        shutil.copyfile(local, local.with_name("benchmark.prev.json"))
+    local.write_bytes(r.content)
+    print(L(f"  내 기록 기준을 새것으로 바꿨습니다 ({made})", f"  Updated the My record baseline ({made})"))
+
+
 def model_meta() -> dict:
     try:
         return json.loads((rg.usable_model_dir() / "draft.json").read_text(encoding="utf-8"))
@@ -529,6 +555,7 @@ def cmd_update(args) -> None:
     print(L("\n  [업데이트] 2/3 모델", "\n  [Update] 2/3 Model"))
     before = model_meta().get("trained_at")
     pull_official_model()
+    pull_official_benchmark()
     retrain, why = needs_retrain()
     print(f"  {why}")
     if retrain or args.force_train:

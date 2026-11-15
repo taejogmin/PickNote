@@ -13,6 +13,7 @@ import argparse
 import random
 import sys
 import time
+import zlib
 
 from src.data.store import connect, counts
 from src.i18n import L
@@ -247,8 +248,29 @@ def parse_match(payload: dict, tier: str):
     return match_row, rows
 
 
+CURVE_EVERY = 4      # 4판 중 1판만 타임라인을 받아 5분마다 숫자를 둔다 — 수집 속도는 약 20% 덜 나온다
+
+
+def wants_curve(match_id: str) -> bool:
+    """매치 ID로 정해서 다시 돌려도 같은 판을 고른다"""
+    return zlib.crc32(match_id.encode()) % CURVE_EVERY == 0
+
+
+def curve_by_champion(client: RiotClient, match_id: str, payload: dict) -> str | None:
+    """타임라인의 참가자 번호(1~10)를 챔피언 ID로 바꿔 둔다 — 이 DB는 참가자를 챔피언 · 자리로 저장한다."""
+    import json
+    from src.riot.benchmark import curve_of, timeline
+    line = timeline(client, match_id)
+    cv = curve_of(line) if line else None
+    if not cv:
+        return None
+    champ = {str(p.get("participantId")): p.get("championId") for p in payload.get("info", {}).get("participants", [])}
+    out = {str(champ[k]): v for k, v in cv.items() if champ.get(k)}
+    return json.dumps(out, separators=(",", ":")) if len(out) == 10 else None
+
+
 def fetch_matches(client: RiotClient, conn, limit: int, tiers: list[str] = TIERS) -> tuple[int, int]:
-    """대기 중인 매치의 상세를 받는다. 요청 1건 = 매치 1건, 여기가 병목이다."""
+    """대기 중인 매치의 상세를 받는다. 요청 1건 = 매치 1건, 여기가 병목이다. 4판에 1판은 타임라인도 (요청 1건 더)."""
     # 여기도 무작위. 대기열은 티어별로 뭉쳐서 들어오므로 앞에서부터 꺼내면
     # 한 티어만 계속 받게 된다. 대기열은 수천 건 규모라 정렬 비용은 무시할 만하다.
     where, args = _in(tiers)
@@ -282,6 +304,10 @@ def fetch_matches(client: RiotClient, conn, limit: int, tiers: list[str] = TIERS
                 " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 part_rows,
             )
+            if wants_curve(row["match_id"]):
+                cv = curve_by_champion(client, row["match_id"], payload)
+                if cv:
+                    conn.execute("INSERT OR REPLACE INTO curve VALUES (?, ?)", (row["match_id"], cv))
             conn.execute(
                 "UPDATE match_queue SET status = 1 WHERE match_id = ?", (row["match_id"],)
             )

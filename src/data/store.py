@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS participant (
     PRIMARY KEY (match_id, team, position)   -- 팀당 포지션 중복 불가
 );
 CREATE INDEX IF NOT EXISTS ix_part_champ ON participant(champion_id, position);
+
+-- 4판 중 1판만 받는 5분마다 숫자 — 같은 라인 · 같은 챔피언끼리 시간대별 격차를 견주려고.
+-- 타임라인은 요청이 한 번 더 들고 원본은 판당 60KB라 다 받지 않는다. curve 는 {"챔피언 ID": {"cs": [...], "gold": [...], "xp": [...]}}
+CREATE TABLE IF NOT EXISTS curve (
+    match_id TEXT PRIMARY KEY,
+    curve    TEXT NOT NULL
+);
 """
 
 # 나중에 추가한 열. 매치 응답에 이미 들어 있어 추가 요청 없이 저장할 수 있다.

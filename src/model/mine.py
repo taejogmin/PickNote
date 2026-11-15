@@ -45,7 +45,7 @@ class Game:
     win: int
     team: int                   # 100 또는 200
     lineup: dict = field(default_factory=dict)   # 팀 → {포지션: 챔피언}
-    mates: list = field(default_factory=list)    # 같은 팀 넷의 해시 (이름은 저장하지 않았다)
+    mates: list = field(default_factory=list)    # 같은 팀 넷의 해시 (이름은 3판 이상 같이 한 사람만 mate_name 표에)
     account: str = ""                            # 어느 내 계정의 판인가
     season: str = ""                             # 패치 앞자리 ("16")
     duel: dict | None = None                     # 나와 맞은편의 숫자 — 솔로랭크 15분 넘은 판만
@@ -64,12 +64,12 @@ class Game:
         return all(len(self.lineup.get(t, {})) == 5 for t in (100, 200))
 
 
-_cache: dict = {"mtime": None, "games": [], "me": {}, "accounts": [], "ranks": []}
+_cache: dict = {"mtime": None, "games": [], "me": {}, "accounts": [], "ranks": [], "mate_names": {}}
 
 
 def _load() -> None:
     if not DB.exists():
-        _cache.update(mtime=None, games=[], me={}, accounts=[], ranks=[])
+        _cache.update(mtime=None, games=[], me={}, accounts=[], ranks=[], mate_names={})
         return
     mtime = DB.stat().st_mtime
     if mtime == _cache["mtime"]:
@@ -99,6 +99,10 @@ def _load() -> None:
                                  "FROM rank_snapshot ORDER BY ts_ms").fetchall()
         except sqlite3.OperationalError:
             ranks = []
+        try:            # 같이 많이 한 사람 이름 — 내 기록을 갱신하기 전 파일에는 없다 (그때는 번호로)
+            mate_names = dict(conn.execute("SELECT mate, riot_id FROM mate_name"))
+        except sqlite3.OperationalError:
+            mate_names = {}
     finally:
         conn.close()
     label = dict(accounts)
@@ -126,7 +130,7 @@ def _load() -> None:
             games.append(g)
     ranks = [{"a": label.get(a, ""), "t": t, "q": q, "tier": tier, "div": div, "lp": lp, "wins": w, "losses": l}
              for a, t, q, tier, div, lp, w, l in ranks if a in label]
-    _cache.update(mtime=mtime, games=games, me=me, accounts=[r for _p, r in accounts], ranks=ranks)
+    _cache.update(mtime=mtime, games=games, me=me, accounts=[r for _p, r in accounts], ranks=ranks, mate_names=mate_names)
 
 
 def games() -> list[Game]:
@@ -475,7 +479,8 @@ def summary(rec=None, lang: str | None = None) -> dict:
     for i, g in enumerate(gs):
         for m in g.mates:
             mate_ix[m].append(i)
-    mates = sorted((block(ix) for ix in mate_ix.values() if len(ix) >= 3), key=lambda r: -r["games"])
+    names = _cache.get("mate_names", {})
+    mates = sorted(({**block(ix), "name": names.get(m)} for m, ix in mate_ix.items() if len(ix) >= 3), key=lambda r: -r["games"])
     for k, r in enumerate(mates, 1):
         r["label"] = L(f"동료 {k}", f"Teammate {k}", lang)
 

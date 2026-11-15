@@ -62,6 +62,11 @@ CREATE TABLE IF NOT EXISTS my_match (
     raw         BLOB NOT NULL           -- 경기 원본 JSON (gzip). 다른 사람의 신원은 지웠다
 );
 CREATE INDEX IF NOT EXISTS my_match_time ON my_match(created_ms);
+CREATE TABLE IF NOT EXISTS mate_name (     -- 같은 팀으로 3판 이상 한 사람만 이름을 둔다. 경기 원본에는 여전히 해시만 있다
+    mate     TEXT PRIMARY KEY,         -- 경기 원본의 mate 해시 (소금 + puuid)
+    riot_id  TEXT NOT NULL,            -- 이름#태그 — 마지막으로 같이 한 판 기준 (이름을 바꾸면 따라 바뀐다)
+    match_id TEXT NOT NULL             -- 이름을 읽어 온 판
+);
 CREATE TABLE IF NOT EXISTS rank_snapshot (   -- 갱신할 때마다 찍은 지금 랭크. 지난 티어는 API가 주지 않아 이것만이 진짜 점이다
     account  TEXT NOT NULL,
     ts_ms    INTEGER NOT NULL,
@@ -287,6 +292,41 @@ def pull(conn, client: RiotClient, puuid: str, salt: str, since_s: int | None) -
     return saved
 
 
+MATE_NAME_MIN = 3        # 이만큼 같이 한 사람만 이름을 받는다 — 대개 친구다
+
+
+def name_mates(conn, client: RiotClient) -> None:
+    """같이 많이 한 사람의 이름을 채운다. 사람마다 마지막으로 같이 한 판 하나만 다시 받아 그 판에서 이름을 읽는다.
+    경기 원본은 계속 해시만 들고 있고, 이름은 mate_name 표에만 있다. 같이 한 판이 새로 생기면 다시 읽어 바뀐 이름도 따라간다."""
+    salt = get_me(conn, "salt")
+    if not salt:
+        return
+    # 그 판에서 그 사람이 몇 번 자리였나(participantId)로 찾는다 — puuid 는 API 키마다 달라져서
+    # 키를 바꾸기 전에 받은 판의 해시는 지금 puuid 로 다시 만들 수 없다.
+    shared: dict[str, tuple[int, str, int]] = {}
+    counts: dict[str, int] = {}
+    for match_id, created, raw in conn.execute("SELECT match_id, created_ms, raw FROM my_match"):
+        for p in json.loads(gzip.decompress(raw)).get("info", {}).get("participants", []):
+            m = p.get("mate")
+            if m:
+                counts[m] = counts.get(m, 0) + 1
+                if created > shared.get(m, (0, "", 0))[0]:
+                    shared[m] = (created, match_id, p.get("participantId"))
+    known = dict(conn.execute("SELECT mate, match_id FROM mate_name"))
+    todo = [(m, mid, slot) for m, (_t, mid, slot) in shared.items() if counts[m] >= MATE_NAME_MIN and known.get(m) != mid]
+    if not todo:
+        return
+    print(L(f"같이 {MATE_NAME_MIN}판 이상 한 사람 이름 {len(todo)}명 확인", f"Checking names of {len(todo)} frequent teammates"))
+    for mate, match_id, slot in todo:
+        match = client.match(match_id)
+        p = next((x for x in (match or {}).get("info", {}).get("participants", []) if x.get("participantId") == slot), None)
+        name = (p or {}).get("riotIdGameName") or (p or {}).get("summonerName") or ""
+        if name:
+            tag = p.get("riotIdTagline")
+            conn.execute("INSERT OR REPLACE INTO mate_name VALUES (?, ?, ?)", (mate, f"{name}#{tag}" if tag else name, match_id))
+    conn.commit()
+
+
 def cmd_fetch(args) -> None:
     if "#" not in args.riot_id:
         raise SystemExit(L('Riot ID는 "이름#태그" 꼴로 주세요.', 'Give the Riot ID as "Name#Tag".'))
@@ -356,6 +396,7 @@ def cmd_update(_args) -> None:
     my_timelines(conn, client)         # 타임라인은 매치 ID로 서버를 알아서 어느 client든 된다
     from src.riot.benchmark import backfill_curves
     backfill_curves(client, sample=False, conn=conn)   # 시간대별 격차 — 예전 판의 5분마다 숫자 (처음 한 번)
+    name_mates(conn, client)            # 같이 많이 한 사람 이름 — 새로 같이 한 판이 있는 사람만, 한 명에 요청 하나
 
 
 def print_stats(conn) -> None:

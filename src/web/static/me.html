@@ -354,9 +354,9 @@ function render(){
       `<tr class="${thin(r)}"><td>${champCell(r.championId)}</td>${cols(r)}</tr>`).join("")}</table></div>`
       : `<div class="sub">${L("아직 5판 넘게 만난 상대가 없습니다", "No opponent faced 5+ times yet")}</div>`}</section>`);
 
-  html.push(`<section data-tab="opp" data-sec="mates"><h2>${L("같이 한 사람", "Teammates")}</h2><div class="sub">${L("같은 팀으로 3판 이상 — 이름은 저장하지 않아 번호로만 보입니다", "3+ games on the same team — names aren't stored, so they show as numbers")}</div>
+  html.push(`<section data-tab="opp" data-sec="mates"><h2>${L("같이 한 사람", "Teammates")}</h2><div class="sub">${L("같은 팀으로 3판 이상 — 누구와 같이 할 때 이기나 · 이름은 내 기록을 갱신할 때 받아 옵니다 (그 전에는 번호)", "3+ games on the same team — who you win with · names are fetched when you refresh your record (numbers until then)")}</div>
     ${D.mates.length ? `<div class="tw"><table>${head("")}${D.mates.map(r =>
-      `<tr class="${thin(r)}"><td>${r.label}</td>${cols(r)}</tr>`).join("")}</table></div>`
+      `<tr class="${thin(r)}"><td>${r.name ? esc(r.name) : r.label}</td>${cols(r)}</tr>`).join("")}</table></div>`
       : `<div class="sub">${L("없습니다", "None")}</div>`}</section>`);
 
   html.push(`<section class="wide foot">${L(`
@@ -968,7 +968,7 @@ function recentDetail(g){
   const tiles = keys.map(k => { const t = tileOf(k), p = pctOf(g, k);
     return `<div class="tile mini${p == null ? "" : p >= 70 ? " good" : p <= 30 ? " bad" : ""}"><div class="tv">${t.v([g])}</div><div class="tn">${t.n}</div><div class="tp">${p == null ? "—" : L(`상위 ${Math.max(1, Math.round(100 - p))}%`, `Top ${Math.max(1, Math.round(100 - p))}%`)}</div></div>`; }).join("");
   const sparks = g.gaps ? [["cs", L("CS 격차", "CS gap")], ["gold", L("골드 격차", "Gold gap")], ["xp", L("경험치 격차", "XP gap")]].map(([k, n]) => gapSpark(g.gaps[k], n, k)).join("") : `<div class="sub">${L("5분마다 숫자가 아직 없습니다", "No 5-minute numbers yet")}</div>`;
-  return `<tr class="rdetail"><td colspan="12"><div class="ccharts">${sparks}</div><div class="tiles" style="margin-top:10px">${tiles}</div></td></tr>`;
+  return `<tr class="rdetail"><td colspan="13"><div class="ccharts">${sparks}</div><div class="tiles" style="margin-top:10px">${tiles}</div></td></tr>`;
 }
 function renderRecent(){
   const main = document.getElementById("main");
@@ -1020,10 +1020,12 @@ function renderRecent(){
   const gapCell = v => v == null ? "—" : `<span class="${v >= 0 ? "pos" : "neg"}">${v > 0 ? "+" : ""}${Math.round(v)}</span>`;
   const date = t => { const d = new Date(t); return `${two(d.getMonth() + 1)}/${two(d.getDate())}`; };
   const mmss = s => `${Math.floor(s / 60)}:${two(s % 60)}`;
+  const luckCls = v => v == null ? "" : Math.round(v) >= 53 ? "pos" : Math.round(v) <= 47 ? "neg" : "";     // 한눈에 팀운처럼 3 넘게 벌어져야 좋음/나쁨 — 보이는 숫자 기준
   const listRow = (g, i) => { const r15 = g.v; return `<tr class="rrow${g.win ? " w" : " l"}" data-i="${i}" tabindex="0" aria-expanded="${rc.open === i}">
       <td>${date(g.t)}</td><td>${champCell(g.champ, posName(g.pos))}</td><td>${g.foe ? champCell(g.foe) : "—"}</td>
       <td class="${g.win ? "pos" : "neg"}">${g.win ? L("승", "W") : L("패", "L")}</td><td>${mmss(g.dur)}</td>
       <td>${r15.kills}/${r15.deaths}/${r15.assists}</td><td>${Math.round(g.lane)} : ${100 - Math.round(g.lane)}</td>
+      <td class="${luckCls(r15.mates)}" title="${L("15분에 나를 뺀 팀원 넷이 상대 넷과 나눈 골드·경험치 몫", "Gold & XP share of your four teammates against their four opponents at 15 minutes")}">${r15.mates == null ? "—" : `${Math.round(r15.mates)} : ${100 - Math.round(r15.mates)}`}</td>
       <td class="${r15.gold15d >= 0 ? "pos" : "neg"}">${r15.gold15d > 0 ? "+" : ""}${Math.round(r15.gold15d)}</td>
       <td class="${r15.cs15d >= 0 ? "pos" : "neg"}">${r15.cs15d > 0 ? "+" : ""}${Math.round(r15.cs15d)}</td>
       <td>${g.contrib.toFixed(2)}</td><td>${Math.round(r15.kp * 100)}%</td><td><b>${grade(bodyOf(g))}</b></td></tr>${rc.open === i ? recentDetail(g) : ""}`; };
@@ -1054,7 +1056,7 @@ function renderRecent(){
       </table></div></div></section>
     <section class="wide"><h2>${L("판마다", "Game by game")}</h2><div class="sub">${L("맞은편 라이너 대비 · 줄을 누르면 그 판의 시간대별 격차와 지표 등수가 펼쳐집니다", "Against your lane opponent · click a row for that game's gaps over time and stat ranks")}</div>
       <div class="tw"><table class="rtable">
-        <tr><th>${L("날짜", "Date")}</th><th>${L("챔피언", "Champion")}</th><th>${L("상대", "Opponent")}</th><th>${L("결과", "Result")}</th><th>${L("시간", "Length")}</th><th>K/D/A</th><th>${L("라인전", "Laning")}</th><th>${L("15분 골드", "Gold@15")}</th><th>${L("15분 CS", "CS@15")}</th><th>${L("인분", "Share")}</th><th>${L("킬 관여", "KP")}</th><th>${L("체급", "Overall")}</th></tr>
+        <tr><th>${L("날짜", "Date")}</th><th>${L("챔피언", "Champion")}</th><th>${L("상대", "Opponent")}</th><th>${L("결과", "Result")}</th><th>${L("시간", "Length")}</th><th>K/D/A</th><th>${L("라인전", "Laning")}</th><th>${L("팀운", "Team luck")}</th><th>${L("15분 골드", "Gold@15")}</th><th>${L("15분 CS", "CS@15")}</th><th>${L("인분", "Share")}</th><th>${L("킬 관여", "KP")}</th><th>${L("체급", "Overall")}</th></tr>
         ${recent.map(listRow).join("")}</table></div></section>`;
   main.querySelectorAll("tr.rrow").forEach(tr => {
     const go = () => { const i = +tr.dataset.i; rc.open = rc.open === i ? null : i; renderRecent(); };

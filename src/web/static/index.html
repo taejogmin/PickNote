@@ -48,6 +48,38 @@
   /* 좁은 창에서는 머리 줄이 넘치지 않게 — 모델 정보와 연결 글자는 숨기고 마우스를 올리면 보인다 */
   @media (max-width:1240px){ .meta{display:none} .lcu span{display:none} }
 
+  /* 오늘의 목표 한 줄 — 내 기록이 있을 때만. 자세한 건 내 기록의 목표 탭 */
+  .goalbar{display:flex;align-items:center;gap:10px;padding:6px 20px;border-bottom:1px solid var(--line);
+    background:var(--panel2);font-size:13px;color:var(--dim);white-space:nowrap;overflow:hidden}
+  .goalbar b{color:var(--text)}.goalbar .gnum{color:var(--gold);font-weight:700}
+  .goalbar .tag{background:var(--gold);color:#0a0e14;font-weight:700;border-radius:5px;padding:1px 7px;font-size:12px}
+  .goalbar .ok{color:var(--good);font-weight:700}.goalbar .no{color:var(--bad, #e86a6a);font-weight:700}
+  .goalbar a{color:var(--dim);margin-left:auto;text-decoration:none}.goalbar a:hover{color:var(--text)}
+  /* 게임 후 피드백 팝업 */
+  .fbwrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .fbwrap[hidden]{display:none}
+  .fbcard{background:var(--panel, #111824);border:1px solid var(--line);border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:18px 20px}
+  .fbcard h3{margin:0 0 2px;font-size:16px}.fbcard .sub{color:var(--dim);font-size:12px;margin-bottom:12px}
+  .fbcard .sec{font-size:12px;font-weight:700;margin:12px 0 6px}.fbcard .sec.g{color:var(--good)}.fbcard .sec.b{color:var(--bad)}
+  .fbitem{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+  .fbitem b{display:block;font-weight:600;margin-bottom:3px}.fbitem ul{margin:0;padding-left:16px;color:var(--dim);font-size:12px}
+  .fbcard .x{float:right;background:none;border:0;color:var(--dim);font-size:18px;cursor:pointer}
+  /* 로딩 화면 10명 표 */
+  .loadbox{padding:8px 20px 10px;border-bottom:1px solid var(--line);font-size:13px}
+  .loadbox .lhead{display:flex;align-items:center;gap:10px;margin-bottom:6px;color:var(--dim)}
+  .loadbox .lhead button{margin-left:auto;background:none;border:0;color:var(--dim);cursor:pointer;font-size:13px}
+  .loadteams{display:grid;grid-template-columns:repeat(auto-fit,minmax(540px,1fr));gap:8px 18px}
+  .loadteams > div{overflow-x:auto}
+  .loadteams th{text-align:left;font-weight:400;color:var(--dim);font-size:11px;padding:0 4px 2px}
+  .loadteams table{width:100%;border-collapse:collapse}
+  .loadteams caption{text-align:left;font-weight:700;padding:2px 0 4px}
+  .loadteams td{padding:3px 4px;border-top:1px solid var(--line);white-space:nowrap}
+  .loadteams td.nm{max-width:90px;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
+  .loadteams img{width:22px;height:22px;border-radius:4px;vertical-align:middle;margin-right:4px}
+  .loadteams tr.me td{background:rgba(200,170,110,.08)}
+  .loadteams .lose{color:var(--bad);font-weight:700}.loadteams .win{color:var(--good);font-weight:700}
+  .loadteams .mark{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:3px;color:var(--gold)}
+
   /* ---------------------------------------------------------- 레이아웃 */
   main{display:grid;grid-template-columns:1fr 390px;gap:16px;padding:16px;
     max-width:1260px;margin:0 auto;align-items:start}
@@ -261,6 +293,13 @@
   .poolfill[hidden]{display:none}
   .poolfill .ghost{color:var(--gold);border-color:#5a4a2a}
   a.ghost{text-decoration:none}
+  /* 음성 브리핑 */
+  .voice{display:flex;align-items:center;gap:6px}
+  .voice button[aria-pressed=true]{color:var(--gold);border-color:#5a4a2a}
+  .voicelock{color:var(--gold);font-size:12px;white-space:nowrap;cursor:pointer}
+  .voicelock.flash{animation:vlflash .5s 4 alternate}
+  @keyframes vlflash{to{opacity:.25}}
+  .voice label{color:var(--faint);font-size:12px;display:flex;align-items:center;gap:3px;white-space:nowrap}
   /* 언어 전환 — i18n.js가 body 끝에 넣는다. 위쪽 머리줄을 가리지 않게 오른쪽 아래 */
   #lang-toggle{position:fixed;right:12px;bottom:12px;z-index:20;
     background:var(--panel2);border:1px solid var(--line);border-radius:7px;
@@ -283,11 +322,26 @@
   <div class="spacer"></div>
   <button class="ghost" id="reset" title="새 판 시작" data-en-title="Start a new draft" data-en="Reset">초기화</button>
   <button class="ghost" id="openpool" data-en="My champion pool">내 챔피언 풀</button>
+  <!-- 음성 브리핑 — 이 언어의 음성 팩이 있을 때만 보인다 (data/voice/<언어>). 행동 지시 없이 추천을 읽어 줄 뿐이다 -->
+  <div class="voice" id="voice" hidden>
+    <button class="ghost" id="voiceplay" aria-pressed="false"
+            title="지금 추천을 음성으로 듣기 — 판이 다 차면 게임 브리핑"
+            data-en-title="Hear the current recommendation — a game briefing once the board is full"
+            data-en="🔊 Briefing">🔊 브리핑</button>
+    <label title="내 픽 차례와 픽이 다 끝났을 때 저절로 읽어 줍니다 (클라이언트와 연결 안 됐으면 읽을 내용이 바뀔 때마다)"
+           data-en-title="Reads out on its own on your pick turn and when picks are done (without the client, whenever the content changes)"><input type="checkbox" id="voiceauto"> <span data-en="Auto">자동</span></label>
+    <span class="voicelock" id="voicelock" hidden title="브라우저는 화면을 한 번 누르기 전에는 소리를 막습니다"
+          data-en-title="Browsers block sound until you click the page once" data-en="🔇 Click the page once">🔇 화면을 한 번 눌러 주세요</span>
+  </div>
   <!-- 내 경기 기록이 있을 때만 보인다. 새 탭 — 밴픽판을 잃지 않게 -->
   <a class="ghost" id="openme" href="/me" target="_blank" hidden data-en="My stats">내 기록</a>
   <div class="lcu" id="lcu"><i></i><span data-en="Client not connected">클라이언트 연결 안 됨</span></div>
   <div class="meta" id="meta" data-en="No data">데이터 없음</div>
 </header>
+<div class="goalbar" id="goalbar" hidden></div>
+<div class="goalbar" id="friendbar" hidden></div>
+<div class="loadbox" id="loadbox" hidden></div>
+<div class="fbwrap" id="fbwrap" hidden onclick="if(event.target===this)this.hidden=true"><div class="fbcard" id="fbcard"></div></div>
 
 <main>
   <section>
@@ -841,7 +895,160 @@ function renderRecs(data){
   document.getElementById("modelnote").textContent = data?.note ?? "";
 }
 
+// ---------------------------------------------------------- 오늘의 목표 한 줄
+// 내 자리의 목표 하나 (한 티어 위 같은 자리 평균과 차이가 가장 큰 것). 지표 전부는 내 기록 → 목표 탭
+let goalData = null;
+const GOAL_NAME = {cs15:L("15분 CS", "CS at 15"), xp15:L("15분 경험치", "XP at 15"), deaths:L("데스", "Deaths"),
+                   vision:L("분당 시야 점수", "Vision score per min"), ctrl:L("제어 와드", "Control wards"),
+                   kp:L("킬 관여율", "Kill participation"), kp15:L("15분 킬 관여율", "Kill participation at 15"), dmg:L("분당 딜량", "Damage per min")};
+const TIER_LABEL = {IRON:L("아이언", "Iron"), BRONZE:L("브론즈", "Bronze"), SILVER:L("실버", "Silver"), GOLD:L("골드", "Gold"),
+                    PLATINUM:L("플래티넘", "Platinum"), EMERALD:L("에메랄드", "Emerald"), DIAMOND:L("다이아몬드", "Diamond"),
+                    MASTER:L("마스터", "Master"), GRANDMASTER:L("그랜드마스터", "Grandmaster"), CHALLENGER:L("챌린저", "Challenger")};
+function goalFmt(k, v, avg = false){        // avg: 평균은 소수 한 자리까지 (제어 와드 6.8 을 7 로 올려 보이지 않게)
+  if(["kp", "kp15"].includes(k)) return `${Math.round(v * 100)}%`;
+  if(k === "vision") return v.toFixed(2);
+  if(k === "deaths") return avg ? v.toFixed(1) : L(`${v.toFixed(1)} 이하`, `≤ ${v.toFixed(1)}`);
+  if(k === "ctrl"){ const n = avg ? v.toFixed(1).replace(/\.0$/, "") : Math.round(v); return L(`${n}개`, `${n}`); }
+  return Math.round(v).toLocaleString();
+}
+async function loadGoal(){
+  try{ goalData = await fetch("/api/me/goal").then(r => r.json()); }catch{ goalData = null; }
+  renderGoalBar();
+  voiceGoalResult();          // 판이 끝나 기록이 새로 들어왔으면 목표 결과를 읽는다 (처음 열 때는 기억만 한다)
+}
+function renderGoalBar(){
+  const bar = document.getElementById("goalbar");
+  const G = goalData;
+  if(!G?.available){ bar.hidden = true; return; }
+  const pos = G.pos[state.myRole] ? state.myRole : G.main, P = G.pos[pos];
+  const r = P?.rows.find(x => x.k === P.pick);
+  if(!r){ bar.hidden = true; return; }
+  const hits = G.today.filter(g => g.pos === pos).map(g => g.hits[r.k]).filter(Boolean);
+  const tier = TIER_LABEL[G.tier] ?? G.tier, ok = hits.filter(h => h.ok).length;
+  const marks = hits.map(h => `<span class="${h.ok ? "ok" : "no"}">${h.ok ? "✓" : "✗"}</span>`).join("");
+  bar.innerHTML = `<span class="tag">${L("오늘의 목표", "Today's goal")}</span><b>${GOAL_NAME[r.k] ?? r.k}</b><span class="gnum">${goalFmt(r.k, r.target)}${r.mode === "keep" ? L(" 유지", " (keep)") : ""}</span>
+    <span>${roleKo(pos)} · ${L(`${tier} 평균 ${goalFmt(r.k, r.base, true)} · 내 최근 ${goalFmt(r.k, r.mine, true)}`, `${tier} average ${goalFmt(r.k, r.base, true)} · my recent ${goalFmt(r.k, r.mine, true)}`)}</span>
+    <span>${hits.length ? L(`오늘 ${marks} ${hits.length}판 중 ${ok}판`, `Today ${marks} ${ok} of ${hits.length} games`) : L("오늘 아직 판 없음", "No games today yet")}</span>
+    <a href="/me#goal" target="_blank">${L("지표 전부 보기 →", "See all stats →")}</a>`;
+  bar.hidden = false;
+}
+
+// ---------------------------------------------------------- 친구 알림
+// 같이 큐를 잡은 파티원 중 같이 한 판이 5판 넘는 사람. 이름은 화면에만, 음성은 승률만 (하루에 한 번, 같은 친구 묶음마다)
+const FRIEND_MIN = 5;
+async function loadFriends(){
+  const bar = document.getElementById("friendbar");
+  let F = null;
+  if(!document.getElementById("openme").hidden){
+    try{ F = await fetch("/api/me/friends").then(r => r.ok ? r.json() : null); }catch{}
+  }
+  if(!F?.friends?.length){ bar.hidden = true; return; }
+  const pct = (w, n) => Math.round(100 * w / n);
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;"}[c]));
+  const T = F.together;
+  bar.innerHTML = `<span class="tag">${L("함께 게임한 플레이어", "Played with")}</span>` + F.friends.map(f =>
+      `<span><b>${esc(f.name || L("친구", "Friend"))}</b> ${L(`${f.games}판 · ${f.wins}승 ${f.games - f.wins}패`, `${f.games} games · ${f.wins}W ${f.games - f.wins}L`)} <span class="gnum">${pct(f.wins, f.games)}%</span></span>`).join("")
+    + (T && T.games >= FRIEND_MIN ? `<span>${L(`다 같이 ${T.games}판`, `All together ${T.games} games`)} <span class="gnum">${pct(T.wins, T.games)}%</span></span>` : "");
+  bar.hidden = false;
+  voiceFriend(F);
+}
+
+// ---------------------------------------------------------- 게임 후 피드백
+// 팝업: 잘한 점 1 · 아쉬운 점 2~3, 각 항목 아래에 시각. 음성은 가장 큰 것 하나 (src/model/feedback.py)
+const FEEDBACK_KEY = "draft.feedback.v1";       // 마지막으로 띄운 판 번호
+/** 방금 끝난 판의 피드백 — 바로 한 번 받아 보고, 못 받으면 (Riot 쪽에 아직 안 올라옴) 20초마다 최대 4분 다시.
+    팝업은 판마다 한 번. 바로 받으면 F 를 돌려줘 기울어짐 음성과 이어 말하고, 늦게 받으면 혼자 말한다 */
+async function fetchFeedback(){
+  let F = null;
+  try{ F = await fetch(`/api/feedback?lang=${LANG}`).then(r => r.ok ? r.json() : null); }catch{}
+  if(!F?.available) return undefined;                 // 아직 없다
+  let seen = null; try{ seen = localStorage.getItem(FEEDBACK_KEY); }catch{}
+  if(String(F.gameId) === seen) return null;          // 이미 띄운 판
+  try{ localStorage.setItem(FEEDBACK_KEY, String(F.gameId)); }catch{}
+  renderFeedback(F);
+  return F;
+}
+async function loadFeedback(){
+  const F = await fetchFeedback();
+  if(F !== undefined) return F;
+  let left = 12;
+  const again = () => setTimeout(async () => {
+    const G = await fetchFeedback();
+    if(G === undefined){ if(--left > 0) again(); return; }
+    if(G?.say?.length && voice.auto && voice.ctx && !voice.playing){
+      await voiceRefresh();
+      const ids = G.say.filter(id => voice.have.has(id));
+      if(ids.length) voiceSpeak(ids);
+    }
+  }, 20000);
+  again();
+  return null;
+}
+function renderFeedback(F){
+  const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;"}[c]));
+  const item = x => `<div class="fbitem"><b>${esc(x.text)}</b>${x.detail?.length ? `<ul>${x.detail.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}</div>`;
+  document.getElementById("fbcard").innerHTML = `<button class="x" type="button" title="${L("닫기", "Close")}" onclick="document.getElementById('fbwrap').hidden=true">✕</button>
+    <h3>${L("게임 후 피드백", "Post-game feedback")}</h3>
+    <div class="sub">${esc(nameOf(F.champ))} · ${roleKo(F.pos)} · ${F.win ? L("승리", "Victory") : L("패배", "Defeat")} · ${L(`${F.min}분`, `${F.min} min`)} · ${L(`데스 ${F.deaths}`, `${F.deaths} deaths`)}</div>
+    ${F.good?.length ? `<div class="sec g">${L("잘한 점", "Went well")}</div>${F.good.map(item).join("")}` : ""}
+    ${F.bad?.length ? `<div class="sec b">${L("아쉬운 점", "Could be better")}</div>${F.bad.map(item).join("")}` : `<div class="sec">${L("아쉬운 점으로 꼽을 장면이 없었어요.", "Nothing stood out as a mistake.")}</div>`}
+    <div class="sub" style="margin:12px 0 0">${L("딜량과 위치는 1분 단위라 대략입니다. 시야(보였는지)는 알 수 없습니다.", "Damage and positions are recorded once a minute, so they're approximate. Whether you were visible isn't known.")}</div>`;
+  document.getElementById("fbwrap").hidden = false;
+}
+
+// ---------------------------------------------------------- 로딩 화면
+// 게임이 시작되면(로딩 화면) 10명의 최근 판 · 랭크를 클라이언트에서 읽어 표로 보여 주고, 눈에 띄는 것 세 개만 자리로 말한다.
+// 다른 사람 전적은 서버가 저장하지 않는다. 다음 밴픽이 시작되면 표를 닫는다.
+const LOAD_FLOW = new Set(["GameStart", "InProgress"]);
+const loadState = {gid: null, busy: false, tries: 0};
+function onLoadingFlow(flow){
+  if(!LOAD_FLOW.has(flow)){ loadState.tries = 0; return; }
+  if(loadState.busy || loadState.gid || loadState.tries >= 30) return;
+  loadState.busy = true; loadState.tries++;
+  fetch("/api/loading").then(r => r.ok ? r.json() : null).catch(() => null).then(LD => {
+    loadState.busy = false;
+    if(!LD?.available) return;            // 아직 팀이 안 생겼다 — 다음 폴링에 다시
+    loadState.gid = LD.gameId;
+    renderLoading(LD);
+    voiceLoading(LD);
+  });
+}
+function closeLoading(){ loadState.gid = null; loadState.tries = 0; document.getElementById("loadbox").hidden = true; }
+function renderLoading(LD){
+  const box = document.getElementById("loadbox");
+  const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;"}[c]));
+  const pct = (w, n) => n ? Math.round(100 * w / n) + "%" : "-";
+  const row = p => {
+    const s = p.stat, st = s.streak;
+    const rank = p.rank ? `${TIER_LABEL[p.rank.tier] ?? p.rank.tier} ${["MASTER","GRANDMASTER","CHALLENGER"].includes(p.rank.tier) ? "" : p.rank.div} ${p.rank.lp ?? 0}LP` : L("언랭", "Unranked");
+    const streak = st && st.n >= 2 ? `<span class="${st.kind}">${st.kind === "win" ? L(`${st.n}연승`, `${st.n}W streak`) : L(`${st.n}연패`, `${st.n}L streak`)}</span>` : "";
+    const marks = (s.most ? `<span class="mark">${L("모스트", "Main")}</span>` : "") + (s.new ? `<span class="mark">${L("최근 안 함", "Not played lately")}</span>` : "");
+    return `<tr class="${p.me ? "me" : ""}"><td>${roleKo(p.pos) || "?"}${p.posGuess ? "?" : ""}</td>
+      <td><img src="${portrait(p.champ)}" alt="">${esc(nameOf(p.champ))}${marks}</td>
+      <td class="nm" title="${esc(p.name)}">${p.me ? L("나", "Me") : esc(p.name)}</td><td>${rank}</td>
+      <td>${s.recent ? L(`${s.wins}승 ${s.recent - s.wins}패 ${pct(s.wins, s.recent)}`, `${s.wins}W ${s.recent - s.wins}L ${pct(s.wins, s.recent)}`) : L("기록 없음", "No games")}</td><td>${streak}</td>
+      <td>${s.champGames ? L(`${s.champGames}판 ${pct(s.champWins, s.champGames)}`, `${s.champGames} games ${pct(s.champWins, s.champGames)}`) : ""}</td></tr>`;
+  };
+  const team = (k, title) => `<div><table><caption>${title}</caption>
+    <tr><th>${L("자리", "Role")}</th><th>${L("챔피언", "Champion")}</th><th>${L("이름", "Name")}</th><th>${L("티어", "Rank")}</th><th>${L("최근 20판", "Last 20")}</th><th>${L("연속", "Streak")}</th><th>${L("이 챔피언", "This champion")}</th></tr>
+    ${LD.players.filter(p => p.team === k).map(row).join("")}</table></div>`;
+  box.innerHTML = `<div class="lhead"><span class="goalbar" style="padding:0;border:0"><span class="tag">${L("로딩 화면", "Loading screen")}</span></span>
+      ${L("최근 20판 (소환사의 협곡) · 연속은 가장 최근 판부터", "Last 20 games (Summoner's Rift) · streaks count back from the latest game")}<button type="button" onclick="closeLoading()">${L("닫기 ✕", "Close ✕")}</button></div>
+    <div class="loadteams">${team("a", L("우리 팀", "Our team"))}${team("e", L("상대 팀", "Enemy team"))}</div>`;
+  box.hidden = false;
+}
+/** 게임마다 한 번 — 자동 음성이 켜져 있을 때만. 오늘의 목표는 밴픽 브리핑과 겹치지 않게 여기서 먼저 읽는다 */
+function voiceLoading(LD){
+  if(!voice.auto || !voice.ctx) return;
+  if(voiceGoalStore().load === LD.gameId) return;
+  voiceGoalStore({load: LD.gameId});
+  const mine = LD.players?.find(p => p.me)?.pos;
+  const ids = [...voiceGoalIntro(mine), ...(LD.say ?? []).filter(id => voice.have.has(id))];
+  if(ids.length && !voice.playing) voiceSpeak(ids);
+}
+
 async function refresh(){
+  renderGoalBar();
   try{
     const res = await fetch("/api/recommend", {
       method:"POST", headers:{"Content-Type":"application/json"},
@@ -855,7 +1062,9 @@ async function refresh(){
         lang: LANG,
       })
     });
-    renderRecs(await res.json());
+    const data = await res.json();
+    renderRecs(data);
+    voiceOnData(data);
   }catch{ renderRecs(null); }
 }
 
@@ -986,18 +1195,23 @@ const LCU_LABEL = {offline: L("클라이언트 꺼짐", "Client offline"), idle:
 const sameBoard = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 
 function applyLcu(d){
+  if(d.boot){                                   // 서버를 다시 켰으면 화면도 새 코드로
+    if(state.boot && state.boot !== d.boot) return location.reload();
+    state.boot = d.boot;
+  }
   const dot = document.getElementById("lcu");
   dot.className = "lcu" + (d.status === "champ_select" ? " on" : d.status === "idle" ? " idle" : "");
   dot.querySelector("span").textContent = LCU_LABEL[d.status] ?? LCU_LABEL.offline;
   dot.title = dot.querySelector("span").textContent;
   // 밴픽이 끝나도 마지막 상태를 지우지 않는다 — 로딩 화면에서 다시 볼 수 있게
-  if(d.status !== "champ_select"){ state.lcu.status = d.status; return; }
+  if(d.status !== "champ_select"){ state.lcu.status = d.status; voiceOnFlow(d.flow ?? ""); onLoadingFlow(d.flow ?? ""); return; }
   // 끄는 중에 판을 다시 그리면 끌기가 끊긴다
   if(dragFrom) return;
 
   let changed = false;
-  if(d.sessionSeq !== state.lcu.seq){ resetDraft(); state.lcu.seq = d.sessionSeq; changed = true; }
+  if(d.sessionSeq !== state.lcu.seq){ resetDraft(); state.lcu.seq = d.sessionSeq; changed = true; voice.last = ""; loadFriends(); closeLoading(); }
   state.lcu.status = d.status;
+  voiceOnLcu(d);
   if(d.myRole && d.myRole !== state.myRole){
     state.myRole = d.myRole;
     state.candidates = [];
@@ -1238,6 +1452,311 @@ document.addEventListener("keydown", e => {
   if(document.activeElement !== box && e.key.length===1 && !e.ctrlKey && !e.metaKey) box.focus();
 });
 
+/* ------------------------------------------------------------------ 음성 브리핑 (음성 팩: data/voice/<언어>/*.ogg)
+   두 번 말한다. 미리 뽑은 통문장 클립을 차례로 튼다. 한국어 음성뿐이라 영어 화면에서는 영어 팩이 없으면 조용하다.
+     내 픽 차례    "현재 승리 확률이 제일 높은 픽은 요네네요." "챔피언 풀 중에서는 아리가 제일 높아요."
+                   "고민 중인 챔피언 중에서는 모르가나가 가장 좋아요."
+     게임 들어갈 때 "예상 승리 확률은 오십이 쩜 삼 퍼센트예요." "초반에 강하고 후반에 약한 조합이에요."
+                   "럭스 상대로 승률이 좋아요." "다섯 판 만나서 세 판 이겼어요."
+   클라이언트와 연결돼 있으면 내 픽 차례가 올 때 · 픽이 다 끝났을 때(FINALIZATION) 읽는다.
+   손으로 판을 짤 때는 판이 다 차면 게임 브리핑, 그 전에는 픽 브리핑 — 읽을 내용이 바뀔 때마다.
+   클립이 없는 문장은 건너뛴다 (음성 팩에 있는 것만). 행동 지시는 하지 않는다. */
+const VOICE_AUTO_KEY = "draft.voiceAuto.v1";
+/* 자동 음성은 창 하나만 — 3_Open.cmd를 두 번 눌러 탭이 둘이면 같은 말을 동시에 해서 겹친다.
+   먼저 연 탭이 잠금을 쥐고, 그 탭을 닫으면 다음 탭이 이어받는다. 브리핑 버튼은 어느 탭이든 읽는다 */
+const voice = {lang: LANG === "en" ? "en" : "ko", have: new Set(), ctx: null, buf: new Map(), playing: null, last: "", autoPref: false, timer: 0,
+               data: null, turn: false, phase: "", flow: "", leader: !navigator.locks,
+               get auto(){ return this.autoPref && this.leader; }, set auto(v){ this.autoPref = v; }};
+navigator.locks?.request("picknote-voice", () => { voice.leader = true; voiceLockShow?.(); return new Promise(() => {}); });
+const VOICE_GAP = 0.3;              // 문장 사이 쉼 (초)
+const VOICE_REC_WHOLE = 12;         // 맞라인 기록: 12판까지는 통문장, 넘으면 "n판 만나서," + "w판 이겼어요."
+const POWER_PP = 3;                 // 초반(~20분)과 후반(30분~) 승률 차가 이만큼 나야 "강하다/약하다"
+
+const best = rows => rows.length ? rows.reduce((a, b) => b.winrate > a.winrate ? b : a) : null;
+/** 내 챔피언 — 클라이언트에서 확정한 픽, 손으로 판을 다 채웠으면 고민 중 맨 앞 */
+function voiceMyChamp(){
+  if(state.myPick) return state.myPick;
+  const full = Object.keys(state.ally).length >= 4 && Object.keys(state.enemy).length >= 5;
+  return full ? state.candidates[0] ?? 0 : 0;
+}
+/** 내 픽 차례 — 전체 최고 · 내 풀 최고 · 고민 중 최고. 앞 문장과 같은 챔피언이면 건너뛴다 */
+function voicePickScript(data){
+  if(!data) return [];
+  const cands = data.candidates ?? [], all = [...(data.others ?? []), ...cands];
+  if(!all.length) return ["none"];
+  const top = best(all), pool = state.pool[state.myRole] ?? [];
+  const inPool = best(all.filter(r => pool.includes(r.championId)));
+  const cand = cands.length >= 2 ? best(cands) : null;
+  const out = [`top_${top.championId}`];
+  if(inPool && inPool.championId !== top.championId) out.push(`pool_${inPool.championId}`);
+  if(cand && cand.championId !== top.championId && cand.championId !== inPool?.championId) out.push(`cand_${cand.championId}`);
+  return out;
+}
+/** 파워 커브 — 시간대별 곡선의 앞(~20분)과 뒤(30분~ 두 칸 평균)를 견준다 */
+function voicePower(c){
+  if(!c || c.length < 4) return null;
+  const d = (c[c.length - 1] + c[c.length - 2]) / 2 - c[0];
+  return d <= -POWER_PP ? "pc_early" : d >= POWER_PP ? "pc_late" : "pc_even";
+}
+/** 게임 들어갈 때 — 예상 승리 확률 · 파워 커브 · 맞라인 상대 내 기록 */
+function voiceGameScript(data){
+  const me = voiceMyChamp();
+  if(!data || !me) return [];
+  const row = [...(data.candidates ?? []), ...(data.others ?? [])].find(r => r.championId === me);
+  const out = [];
+  if(row){
+    out.push(`gw${Math.round(row.winrate * 10)}`);
+    const pc = voicePower(row.curve);
+    if(pc) out.push(pc);
+  }
+  const foe = data.myLane?.rows?.find(r => r.kind === "foe");
+  if(foe && foe.games >= 3 && foe.wins != null){
+    const c = foe.champs[0], n = foe.games, w = foe.wins;
+    out.push(`${w * 2 > n ? "fg" : w * 2 < n ? "fb" : "fe"}_${c}`);
+    if(voice.have.has(out[out.length - 1])) out.push(...(n <= VOICE_REC_WHOLE ? [`rec${n}_${w}`] : [`rn${n}`, `rw${w}`]));
+  }
+  return out;
+}
+/** 지금 읽을 것. kind 를 안 주면 판 상태로 고른다 */
+function voiceScript(data, kind){
+  kind ??= voiceMyChamp() ? "game" : "pick";
+  const ids = kind === "game" ? voiceGameScript(data) : voicePickScript(data);
+  // 기록 두 조각은 둘 다 있어야 읽는다
+  return ids.filter((id, i) => voice.have.has(id) && (!id.startsWith("rn") || voice.have.has(ids[i + 1])) && (!id.startsWith("rw") || voice.have.has(ids[i - 1])));
+}
+/* 오늘의 목표 음성 — 하루 첫 로딩 화면 음성 앞에 목표 한 문장, 판이 끝나 기록이 들어오면 달성 · 오늘 몇 판 중 몇 판.
+   클립 id 는 음성 팩에 든 숫자 범위와 맞춘다. 숫자는 화면 목표를 반올림 (데스는 내림 — "이하"라서) */
+const VOICE_GOAL_RANGE = {ctrl:[1, 15, 1], deaths:[2, 10, 1], cs15:[40, 160, 5], vision:[5, 40, 1], kp:[25, 75, 1], kp15:[25, 75, 1], dmg:[150, 1500, 50]};
+const VOICE_GOAL_KEY = "draft.voiceGoal.v1";      // {said: "날짜:자리", heard: 마지막으로 알려 준 판 시각}
+function voiceGoalStore(patch){
+  let s = {};
+  try{ s = JSON.parse(localStorage.getItem(VOICE_GOAL_KEY)) || {}; }catch{}
+  if(patch){ s = {...s, ...patch}; try{ localStorage.setItem(VOICE_GOAL_KEY, JSON.stringify(s)); }catch{} }
+  return s;
+}
+/** 지금 자리의 목표 줄 — 화면 한 줄(renderGoalBar)과 같은 것을 고른다 */
+function voiceGoalRow(pos){
+  const G = goalData;
+  if(!G?.available) return null;
+  pos = pos && G.pos[pos] ? pos : (G.pos[state.myRole] ? state.myRole : G.main);
+  const P = G.pos[pos], r = P?.rows.find(x => x.k === P.pick);
+  return r ? {pos, r} : null;
+}
+function voiceGoalClip(r){
+  const R = VOICE_GOAL_RANGE[r.k];
+  if(!R) return null;
+  let v = r.k === "kp" || r.k === "kp15" ? r.target * 100 : r.k === "vision" ? r.target * 10 : r.target;
+  v = r.k === "deaths" ? Math.floor(v + 1e-9) : Math.round(v / R[2]) * R[2];
+  return v >= R[0] && v <= R[1] ? `g_${r.k}_${v}` : null;
+}
+/** 하루 첫 로딩 화면에서 읽을 목표 문장 (자리가 바뀌면 그 자리 목표를 한 번 더) */
+function voiceGoalIntro(pos){
+  const g = voiceGoalRow(pos);
+  if(!g) return [];
+  const tag = `${goalData.dayStart}:${g.pos}`;
+  if(voiceGoalStore().said === tag) return [];
+  const ids = [voiceGoalClip(g.r), g.r.mode === "keep" ? "g_keep" : null].filter(id => id && voice.have.has(id));
+  if(ids.length) voiceGoalStore({said: tag});
+  return ids;
+}
+/** 기록이 새로 들어왔으면 — 그 판 자리의 목표로 달성 여부와 오늘 성적 */
+function voiceGoalResult(){
+  const G = goalData;
+  if(!G?.available || !G.today.length) return;
+  const last = G.today[G.today.length - 1], st = voiceGoalStore();
+  if(st.heard == null || last.t <= st.heard){ if(st.heard == null || last.t > st.heard) voiceGoalStore({heard: last.t}); return; }
+  voiceGoalStore({heard: last.t});
+  if(!voice.auto || !voice.ctx || voice.playing) return;
+  const g = voiceGoalRow(last.pos);
+  if(!g || g.pos !== last.pos) return;
+  const hits = G.today.filter(x => x.pos === g.pos).map(x => x.hits[g.r.k]).filter(Boolean);
+  const h = last.hits[g.r.k];
+  if(!h || !hits.length) return;
+  const n = hits.length, m = hits.filter(x => x.ok).length;
+  const ids = n === 1 ? [`g_day1_${m}`] : [h.ok ? "g_hit" : "g_miss", ...(n <= 15 ? [`g_day${n}_${m}`] : [])];
+  voiceSpeak(ids.filter(id => voice.have.has(id)));
+}
+/* 기울어짐 — 게임이 끝나 로비로 돌아왔을 때, 다음 큐를 누르기 전에 사실만. 같은 자리에 앉아 이어 한 판(앞 판이 끝나고 1시간 안)이 기준.
+   A 같은 자리에서 3연패 이상 → "세 판 연달아 아쉬웠어요…" (연패 수가 늘 때마다 한 번)
+   B 이번이 다섯 판째 이상 → "벌써 다섯 판째예요." + 내 기록에서 그 판째부터 승률이 첫 판보다 3%p 넘게 낮으면 그 숫자 (자리마다 한 번)
+   오늘 판은 클라이언트 최근 전적으로 본다 (/api/me/session) */
+const TILT_FROM_MIN = 15;           // "n판째부터 승률" 은 이만큼 판이 있어야 말한다
+async function voiceTilt(){
+  let s;
+  try{ s = await fetch("/api/me/session").then(r => r.ok ? r.json() : null); }catch{ s = null; }
+  if(!s?.played) return [];
+  const st = voiceGoalStore(), ids = [], patch = {};
+  if(s.streak >= 3){
+    const n = Math.min(s.streak, 5), tag = `${s.start}:${n}`;
+    if(st.tiltL !== tag){ ids.push(`t_lose${n}`); patch.tiltL = tag; }
+  }
+  const k = s.played + 1;
+  if(k >= 5 && st.tiltN !== s.start){
+    ids.push(`t_n${Math.min(k, 11)}`); patch.tiltN = s.start;
+    const from = [8, 7, 6, 5].find(f => f <= k && (s.wrFrom[f]?.n ?? 0) >= TILT_FROM_MIN);
+    const wr = from && Math.round(s.wrFrom[from].wr);
+    if(from && s.first?.wr != null && wr <= s.first.wr - 3 && wr >= 20 && wr <= 70) ids.push(`t_wr${from}_${wr}`);
+  }
+  const have = ids.filter(id => voice.have.has(id));
+  if(have.length) voiceGoalStore(patch);
+  return have;
+}
+const FLOW_GAME = new Set(["InProgress", "WaitingForStats", "PreEndOfGame", "EndOfGame", "Reconnect"]);
+/** 게임 → 로비(또는 대기)로 넘어온 순간 한 번. 최근 전적에 방금 판이 들어오도록 잠깐 기다린다 */
+function voiceOnFlow(flow){
+  const prev = voice.flow; voice.flow = flow;
+  if(!FLOW_GAME.has(prev) || FLOW_GAME.has(flow) || !flow) return;
+  setTimeout(async () => {
+    const fb = await loadFeedback();              // 팝업은 음성이 꺼져 있어도 띄운다
+    if(!voice.auto || !voice.ctx || voice.playing) return;
+    await voiceRefresh();
+    const ids = [...(fb?.say ?? []), ...await voiceTilt()].filter(id => voice.have.has(id));
+    if(ids.length) voiceSpeak(ids);
+  }, 4000);
+}
+/** 친구 알림 음성 — 밴픽이 시작되고 잠깐 뒤. 내 픽 차례 브리핑은 이 문장이 끝날 때까지 기다린다 (voice.keep) */
+function voiceFriend(F){
+  if(!voice.auto || !voice.ctx) return;
+  const T = F.together, top = F.friends.reduce((a, b) => b.games > a.games ? b : a);
+  const id = T && T.games >= FRIEND_MIN ? `f_many_${Math.round(100 * T.wins / T.games)}` : `f_one_${Math.round(100 * top.wins / top.games)}`;
+  const tag = `${goalData?.dayStart ?? new Date().toDateString()}:${F.friends.map(f => f.name).sort().join(",")}`;
+  if(voiceGoalStore().friend === tag || !voice.have.has(id)) return;
+  voiceGoalStore({friend: tag});
+  setTimeout(() => {
+    if(voice.playing) return;
+    voice.keep = new Promise(done => { voiceSpeak([id]).then(() => {
+      const end = voice.playing?.[voice.playing.length - 1];
+      if(end){ const prev = end.onended; end.onended = e => { prev?.(e); done(); }; } else done();
+    }); }).finally(() => { voice.keep = null; });
+  }, 1500);
+}
+async function voiceRefresh(){
+  try{ voice.have = new Set((await fetch("/api/voice").then(r => r.json()))[voice.lang] ?? []); }catch{}
+}
+async function voiceClip(id){
+  if(!voice.buf.has(id)){
+    voice.buf.set(id, fetch(`/voice/${voice.lang}/${id}.ogg`).then(r => r.arrayBuffer())
+      .then(b => voice.ctx.decodeAudioData(b)).catch(() => null));
+  }
+  return voice.buf.get(id);
+}
+function voiceStop(){
+  for(const s of voice.playing ?? []) try{ s.stop(); }catch{}
+  voice.playing = null;
+  document.getElementById("voiceplay").setAttribute("aria-pressed", "false");
+}
+/** 브라우저 자동 재생 제한 — 페이지를 열고 화면을 한 번 누르기 전에는 소리가 막힌다.
+    자동이 켜져 있으면 열자마자 소리 상자를 만들어 두고, 아무 데나 처음 누를 때 풀어 준다.
+    막힌 채로 읽을 차례가 오면 알림을 깜빡이고, 30초 안에 누르면 그때 읽는다 */
+function voiceLockShow(){
+  const el = document.getElementById("voicelock");
+  el.hidden = !(voice.auto && voice.ctx && voice.ctx.state !== "running");
+}
+function voiceUnlock(){
+  if(!voice.ctx) return;
+  voice.ctx.resume().then(() => {
+    voiceLockShow();
+    const p = voice.pending; voice.pending = null;
+    if(p && Date.now() - p.at < 30000 && !voice.playing) voiceSpeak(p.ids, true);
+  }).catch(() => {});
+}
+function voiceCtx(){
+  if(voice.ctx) return voice.ctx;
+  voice.ctx = new AudioContext();
+  voice.ctx.onstatechange = voiceLockShow;
+  voiceLockShow();
+  return voice.ctx;
+}
+/** manual = 브리핑 버튼. 자동으로 읽을 때는 서버에 먼저 물어 같은 말을 다른 탭·브라우저가 이미 읽었으면 조용히 있는다.
+    읽기 준비(클립 받기)를 기다리는 사이 다른 읽기가 시작되면 먼저 것은 버린다 — 둘 다 소리 나서 겹치지 않게 */
+async function voiceSpeak(ids, manual){
+  voiceStop();
+  if(!ids.length) return;
+  const gen = voice.gen = (voice.gen ?? 0) + 1;
+  if(!manual){
+    try{
+      const r = await fetch("/api/voice/claim", {method: "POST", headers: {"Content-Type": "application/json"},
+                                                body: JSON.stringify({key: ids.join(",")})}).then(r => r.json());
+      if(r.ok === false) return;           // 서버가 옛날 것이면 답이 달라서 그냥 읽는다
+    }catch{}
+    if(gen !== voice.gen) return;
+  }
+  voiceCtx();
+  if(voice.ctx.state !== "running"){          // 손짓 없이 resume() 은 끝나지 않고 매달려 있어서 잠깐만 기다린다
+    await Promise.race([voice.ctx.resume().catch(() => {}), new Promise(r => setTimeout(r, 300))]);
+  }
+  if(voice.ctx.state !== "running"){
+    voice.pending = {ids, at: Date.now()};
+    const el = document.getElementById("voicelock");
+    voiceLockShow(); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+    return;
+  }
+  const bufs = await Promise.all(ids.map(voiceClip));
+  if(gen !== voice.gen) return;
+  voiceStop();
+  const mine = voice.playing = [];
+  let t = voice.ctx.currentTime + 0.05;
+  ids.forEach((id, i) => {
+    const b = bufs[i];
+    if(!b) return;
+    const src = voice.ctx.createBufferSource();
+    src.buffer = b; src.connect(voice.ctx.destination); src.start(t);
+    mine.push(src);
+    t += b.duration + VOICE_GAP;
+  });
+  document.getElementById("voiceplay").setAttribute("aria-pressed", "true");
+  const end = mine[mine.length - 1];
+  if(end) end.onended = () => { if(voice.playing === mine) voiceStop(); };
+}
+/** 추천이 새로 오면 부른다. 자동이 켜져 있고 읽을 내용이 바뀌었으면 잠깐 기다렸다 읽는다 (픽을 연달아 넣는 중일 수 있다) */
+/** 잠깐 기다렸다 읽는다 — 그사이 추천이 새로 올 수 있어서, 읽을 때 가장 새 추천을 쓴다 */
+function voiceLater(kind, force){
+  clearTimeout(voice.timer);
+  if(!voice.auto || !voice.ctx) return;      // 소리는 버튼이나 자동 체크를 한 번 누른 뒤부터 (브라우저 자동 재생 제한)
+  voice.timer = setTimeout(async () => {
+    if(voice.keep) await voice.keep;          // 친구 알림이 끝나고 읽는다
+    await voiceRefresh();
+    const ids = voiceScript(voice.data, kind), key = kind + ":" + ids.join(",");
+    if(!ids.length || (!force && key === voice.last)) return;
+    voice.last = key; voiceSpeak(ids);
+  }, 1500);
+}
+/** 추천이 새로 오면 부른다. 클라이언트와 연결돼 있으면 차례 신호로만 읽는다 (voiceOnLcu) */
+function voiceOnData(data){
+  voice.data = data;
+  if(state.lcu.status === "champ_select") return;
+  voiceLater(voiceMyChamp() ? "game" : "pick", false);
+}
+/** 클라이언트 신호 — 내 픽 차례가 시작될 때, 픽이 다 끝났을 때 한 번씩 */
+function voiceOnLcu(d){
+  if(d.myTurn && !voice.turn) voiceLater("pick", true);
+  if(d.phase === "FINALIZATION" && voice.phase !== "FINALIZATION") voiceLater("game", true);
+  voice.turn = !!d.myTurn; voice.phase = d.phase ?? "";
+}
+async function voiceInit(){
+  await voiceRefresh();
+  if(!voice.have.size) return;
+  document.getElementById("voice").hidden = false;
+  try{ voice.auto = localStorage.getItem(VOICE_AUTO_KEY) === "1"; }catch{}
+  const auto = document.getElementById("voiceauto");
+  auto.checked = voice.autoPref;
+  auto.addEventListener("change", e => {
+    voice.auto = e.target.checked;
+    try{ localStorage.setItem(VOICE_AUTO_KEY, voice.auto ? "1" : "0"); }catch{}
+    if(voice.autoPref) voiceCtx();
+    voiceLockShow();
+  });
+  if(voice.autoPref) voiceCtx();                // 열자마자 — 처음 누르는 순간 바로 풀리게
+  for(const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, voiceUnlock, true);
+  document.getElementById("voiceplay").addEventListener("click", async () => {
+    if(voice.playing) return voiceStop();
+    await voiceRefresh();          // 음성 팩을 새로 받았으면 그새 늘었을 수 있다
+    const kind = voiceMyChamp() ? "game" : "pick", ids = voiceScript(voice.data, kind);
+    voice.last = kind + ":" + ids.join(",");
+    voiceSpeak(ids, true);
+  });
+}
+
 /* ------------------------------------------------------------------ 시작 */
 (async function init(){
   loadPool(); loadOffRole(); loadIron();
@@ -1261,6 +1780,7 @@ document.addEventListener("keydown", e => {
   // 내 기록 — 없으면 칸이 숨은 채로 둔다
   if(meta.me){
     document.getElementById("openme").hidden = false;
+    loadGoal(); setInterval(loadGoal, 5 * 60 * 1000);       // 내 기록을 갱신하면 오늘 판 결과가 따라온다
     try{
       state.mePool = (await fetch(`/api/me/pool?lang=${LANG}`).then(r=>r.json())).pool || {};
     }catch{ state.mePool = {}; }
@@ -1271,6 +1791,7 @@ document.addEventListener("keydown", e => {
   }
   goMine();
   renderHeader(); renderBoard(); renderGrid(); refresh();
+  voiceInit();
   document.getElementById("q").focus();
   pollLcu();
 })();

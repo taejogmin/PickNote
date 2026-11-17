@@ -24,12 +24,15 @@ def parse_session(session: dict) -> dict:
 
     locked: dict[int, int] = {}          # 칸 번호 → 확정 챔피언
     in_progress: dict[int, int] = {}     # 칸 번호 → 픽 차례에 올려 둔 챔피언
+    my_turn = False                      # 지금 내 픽 차례인가 — 음성 브리핑이 이때 읽는다
     cells_with_pick_action = set()
     bans: list[int] = []
     for a in actions:
         cell, champ, kind = a.get("actorCellId"), a.get("championId") or 0, a.get("type")
         if kind == "pick":
             cells_with_pick_action.add(cell)
+            if cell == local and a.get("isInProgress") and not a.get("completed"):
+                my_turn = True
             if champ and a.get("completed"):
                 locked[cell] = champ
             elif champ and a.get("isInProgress"):
@@ -74,6 +77,7 @@ def parse_session(session: dict) -> dict:
         "phase": (session.get("timer") or {}).get("phase"),
         "myRole": my_role,
         "myPick": my_pick,
+        "myTurn": my_turn,
         "hover": hover if hover and hover != my_pick else 0,
         "ally": ally,
         "allyUnplaced": ally_unplaced,

@@ -160,6 +160,7 @@ def choose_server() -> None:
 def cmd_settings(_args) -> None:
     choose_lang()                      # L()은 부를 때마다 파일을 읽으므로 바로 고른 언어로 이어 묻는다
     choose_server()
+    pull_voice_pack(ask_first=True)
     print(L("\n  바꿨습니다. 켜져 있는 창(수집기 · 화면)은 닫고 다시 켜야 적용됩니다.",
             "\n  Saved. Close and reopen any running windows (collector, app) to apply."))
 
@@ -176,6 +177,7 @@ def cmd_setup(_args) -> None:
     print(L("\n챔피언 목록을 최신으로 받습니다…", "\nUpdating the champion list…"))
     if run_module("src.data.champions") != 0:
         print(L("  받지 못했습니다. 들어 있는 목록을 그대로 씁니다.", "  Couldn't download it. Using the bundled list."))
+    pull_voice_pack(ask_first=True)
 
     print(L("\n준비가 끝났습니다. 다음은 1_ApiKey.cmd (수집·내 기록에 필요) 또는 3_Open.cmd (화면) 입니다.",
             "\nAll set. Next: 1_ApiKey.cmd (needed for collecting and your record) or 3_Open.cmd (the app)."))
@@ -466,6 +468,81 @@ def pull_official_benchmark() -> None:
     print(L(f"  내 기록 기준을 새것으로 바꿨습니다 ({made})", f"  Updated the My record baseline ({made})"))
 
 
+# ---------------------------------------------------------------- 음성 팩
+# 음성 클립은 저장소에 넣지 않고 릴리스에 voice-<언어>.zip 으로 따로 올린다 (기본 PickNote를 가볍게).
+# 받은 클립은 data/voice/<언어>/ 에 풀고, 어느 파일을 받았는지 <언어>.pack 에 적어 둔다.
+# 안 받겠다고 하면 <언어>.skip 을 남겨 업데이트 때 다시 묻지 않는다 (Setup · Settings 에서는 다시 묻는다).
+VOICE_DIR = ROOT / "data" / "voice"
+VOICE_LANGS = ("ko",)                        # 지금은 한국어 음성만 있다
+
+
+def voice_asset(lang: str) -> dict | None:
+    """가장 새 정식 릴리스 중 voice-<lang>.zip 이 붙은 것의 그 파일."""
+    for rel in github("/releases?per_page=20"):
+        if rel.get("draft") or rel.get("prerelease"):
+            continue
+        for a in rel.get("assets") or []:
+            if a.get("name") == f"voice-{lang}.zip":
+                return a
+    return None
+
+
+def pull_voice_pack(ask_first: bool) -> None:
+    """음성 팩을 받거나 새것으로 바꾼다. ask_first면 아직 안 받았을 때 꼭 물어본다 (Setup · Settings).
+    업데이트 때는 받은 사람만 새 팩으로 바꾸고, 안 받은 사람에게는 거절한 적이 없을 때만 묻는다."""
+    from src.i18n import default_lang
+    lang = default_lang()
+    if lang not in VOICE_LANGS:
+        return
+    folder, mark, skip = VOICE_DIR / lang, VOICE_DIR / f"{lang}.pack", VOICE_DIR / f"{lang}.skip"
+    have = mark.read_text(encoding="utf-8").strip() if mark.exists() else ""
+    if not have and skip.exists() and not ask_first:
+        return
+    try:
+        asset = voice_asset(lang)
+    except requests.RequestException:
+        print(L("  음성 팩을 확인하지 못했습니다. 건너뜁니다.", "  Couldn't check the voice pack. Skipping."))
+        return
+    if not asset:
+        return
+    tag = f"{asset['id']}:{asset.get('updated_at', '')}"
+    if have == tag:
+        print(L("  음성 팩이 최신입니다.", "  The voice pack is up to date."))
+        return
+    if not have:
+        size = asset.get("size", 0) / 1_000_000
+        if not ask(L(f"\n  음성 브리핑 팩(한국어, {size:.0f}MB)을 받을까요?\n"
+                     "  밴픽 추천 · 오늘의 목표 · 로딩 화면 · 게임 후 피드백을 소리로 알려 줍니다.",
+                     f"\n  Download the voice briefing pack (Korean only, {size:.0f} MB)?")):
+            VOICE_DIR.mkdir(parents=True, exist_ok=True)
+            skip.write_text("no", encoding="utf-8")
+            print(L("  건너뜁니다. 나중에 받으려면 Settings.cmd", "  Skipped. To get it later, run Settings.cmd"))
+            return
+    print(L("  음성 팩을 받는 중…", "  Downloading the voice pack…"))
+    try:
+        r = requests.get(asset["browser_download_url"], timeout=600)
+        r.raise_for_status()
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+    except (requests.RequestException, zipfile.BadZipFile):
+        print(L("  받지 못했습니다. 다음 업데이트 때 다시 해 보세요.", "  Download failed. Try again on the next update."))
+        return
+    new = folder.with_name(f"{lang}.new")
+    shutil.rmtree(new, ignore_errors=True)
+    new.mkdir(parents=True)
+    count = 0
+    for n in z.namelist():                   # ogg 파일 이름만 꺼낸다 — zip 안 경로는 무시해서 엉뚱한 곳에 풀리지 않게
+        name = Path(n).name
+        if name.lower().endswith(".ogg") and name[:-4].replace("_", "").isalnum():
+            (new / name).write_bytes(z.read(n))
+            count += 1
+    shutil.rmtree(folder, ignore_errors=True)
+    new.rename(folder)
+    mark.write_text(tag, encoding="utf-8")
+    skip.unlink(missing_ok=True)
+    print(L(f"  음성 팩을 받았습니다 — 클립 {count:,}개. 화면을 새로고침하면 🔊 브리핑 버튼이 생깁니다.",
+            f"  Voice pack installed — {count:,} clips. Refresh the app to see the 🔊 button."))
+
+
 def model_meta() -> dict:
     try:
         return json.loads((rg.usable_model_dir() / "draft.json").read_text(encoding="utf-8"))
@@ -556,6 +633,7 @@ def cmd_update(args) -> None:
     before = model_meta().get("trained_at")
     pull_official_model()
     pull_official_benchmark()
+    pull_voice_pack(ask_first=False)
     retrain, why = needs_retrain()
     print(f"  {why}")
     if retrain or args.force_train:

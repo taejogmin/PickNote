@@ -365,6 +365,167 @@ def form() -> dict:
     return {"available": True, "games": rows, "base": bench["tiers"], "q": bench.get("q", {}), "lower": bench.get("lower", [])}
 
 
+GOAL_KEYS = ["lane", "cs15", "gold15", "xp15", "cs15d", "gold15d", "xp15d", "kp15", "kp", "kda", "kills", "assists", "deaths",
+             "solo", "soloShare", "cs", "gold", "dmg", "taken", "dmgShare", "dmgPerGold", "dmgPerDeath", "takenPerDeath",
+             "vision", "ctrl"]
+# 음성으로 말하는 목표 하나는 손으로 바로 바꿀 수 있는 것에서만 고른다 (킬 · 솔로킬 · 비율 같은 결과 지표는 화면에만)
+GOAL_VOICE = ["cs15", "deaths", "vision", "ctrl", "kp", "kp15", "dmg"]
+GOAL_NO_CS = {"UTILITY": {"cs15", "cs", "cs15d"}}      # 서폿은 CS 를 음성 목표로 고르지 않는다
+GOAL_RECENT = 20             # 자리마다 최근 이만큼으로 평균을 낸다
+GOAL_MIN = 5                 # 이보다 적게 한 자리는 목표를 세우지 않는다
+GOAL_DAY_HOUR = 6            # 하루는 새벽 6시에 바뀐다
+GOAL_TIERS = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"]
+
+
+def _pct_of(q: list, v: float, lower: bool) -> float:
+    """그 값이 기준 표본의 몇 %보다 높은가 (0~100, 적을수록 좋은 지표는 뒤집는다)"""
+    if q[0] == q[-1]:
+        p = 50.0
+    else:
+        p = float(np.interp(v, q, np.linspace(0, 100, len(q))))
+    return 100 - p if lower else p
+
+
+def goal() -> dict:
+    """오늘의 목표 — 한 티어 위 같은 자리의 평균(중간값)을 지표마다 목표로 세운다.
+    이미 넘는 지표는 그 선 아래로 떨어지지 않게 지키는 것이 목표. 음성으로 말하는 하나는 한 티어 위와 차이가 가장 큰 것."""
+    gs = [g for g in games() if g.form]
+    if not gs or not BENCHMARK.exists():
+        return {"available": False}
+    bench = json.loads(BENCHMARK.read_text(encoding="utf-8")).get("form") or {}
+    qs, lower = bench.get("q") or {}, set(bench.get("lower") or [])
+    if not qs:
+        return {"available": False}
+    gs.sort(key=lambda g: g.created_ms)
+    # 지금 티어 — 가장 최근 판을 한 계정의 마지막 솔로랭크 기록
+    snaps = sorted((r for r in _cache["ranks"] if r["q"] == "RANKED_SOLO_5x5" and r["a"] == gs[-1].account), key=lambda r: r["t"])
+    now = snaps[-1] if snaps else None
+    have = [t for t in GOAL_TIERS if t in qs]
+    if now and now["tier"] in GOAL_TIERS:
+        i = GOAL_TIERS.index(now["tier"])
+        up = next((t for t in GOAL_TIERS[i + 1:] if t in qs), have[-1])
+    else:
+        up = "GOLD" if "GOLD" in qs else have[-1]
+    recent = gs[-GOAL_RECENT:]
+    tally: dict[str, int] = {}
+    for g in recent:
+        tally[g.position] = tally.get(g.position, 0) + 1
+    main = max(tally, key=tally.get)
+
+    import datetime as _dt
+    t0 = _dt.datetime.now() - _dt.timedelta(hours=GOAL_DAY_HOUR)
+    day_start = int(_dt.datetime(t0.year, t0.month, t0.day, GOAL_DAY_HOUR).timestamp() * 1000)
+
+    by_pos = {}
+    for pos in {g.position for g in gs}:
+        Q = qs.get(up, {}).get(pos)
+        mine_gs = [g for g in gs if g.position == pos][-GOAL_RECENT:]
+        if not Q or len(mine_gs) < GOAL_MIN:
+            continue
+        rows = []
+        for k in GOAL_KEYS:
+            vals = [g.form["tiles"].get(k) for g in mine_gs]
+            vals = [v for v in vals if v is not None]
+            if k not in Q or not vals:
+                continue
+            lo = k in lower
+            mean, base = float(np.mean(vals)), float(Q[k][len(Q[k]) // 2])
+            better = mean <= base if lo else mean >= base
+            target = base      # 이미 넘는 지표도 같은 선 — 한 티어 위 평균 아래로 떨어지지 않게 지킨다 (내 평균을 선으로 두면 솔로킬처럼 치우친 지표는 판마다 넘기 어렵다)
+            hit = lambda v: v <= target if lo else v >= target      # noqa: E731
+            rows.append({"k": k, "lower": lo, "mine": round(mean, 4), "base": round(base, 4), "target": round(target, 4),
+                         "mode": "keep" if better else "raise",
+                         "pct": round(float(np.mean([_pct_of(Q[k], v, lo) for v in vals])), 1),
+                         "hits": sum(hit(v) for v in vals), "n": len(vals)})
+        voice = [r for r in rows if r["k"] in GOAL_VOICE and r["k"] not in GOAL_NO_CS.get(pos, set())]
+        pick = min((r for r in voice if r["mode"] == "raise"), key=lambda r: r["pct"], default=None) \
+            or min(voice, key=lambda r: r["pct"], default=None)
+        by_pos[pos] = {"games": len(mine_gs), "rows": rows, "pick": pick["k"] if pick else None}
+
+    today = []
+    for g in gs:
+        if g.created_ms < day_start or g.position not in by_pos:
+            continue
+        P = by_pos[g.position]
+        hits = {}
+        for r in P["rows"]:
+            v = g.form["tiles"].get(r["k"])
+            if v is not None:
+                hits[r["k"]] = {"v": round(v, 4), "ok": v <= r["target"] if r["lower"] else v >= r["target"]}
+        today.append({"t": g.created_ms, "pos": g.position, "champ": g.champion, "win": g.win, "hits": hits})
+    return {"available": bool(by_pos), "tier": up, "now": now and {k: now[k] for k in ("tier", "div", "lp")},
+            "main": main if main in by_pos else next(iter(by_pos), None), "pos": by_pos, "today": today,
+            "dayStart": day_start, "latest": gs[-1].created_ms}
+
+
+SESSION_GAP_MS = 60 * 60 * 1000     # 앞 판이 끝나고 이만큼 안에 다음 판을 시작하면 같은 자리에 앉아 이어 한 판
+SESSION_FROM = range(2, 9)          # "n판째부터 승률" 을 낼 n
+
+
+def session(live: list[dict] | None = None) -> dict:
+    """기울어짐 — 지금 이어서 몇 판째인가 · 그 안에서 몇 연패인가 · 내 기록에서 n판째부터 승률.
+    live 는 클라이언트 최근 전적 (lcu.recent_games) — 내 기록에 아직 없는 오늘 판을 채운다."""
+    rec = [{"id": int(g.match_id.split("_")[-1]) if g.match_id.split("_")[-1].isdigit() else g.match_id,
+            "t": g.created_ms, "dur": g.duration_s, "win": g.win} for g in games() if g.queue in (420, 440)]
+    seen = {r["id"] for r in rec}
+    now_list = rec + [g for g in (live or []) if g["queue"] in (420, 440) and g["dur"] >= REMAKE_S and g["id"] not in seen]
+    now_list.sort(key=lambda r: r["t"])
+
+    def index(lst):                 # 판마다 그 자리에서 몇 번째 판인가
+        out, prev = [], None
+        for r in lst:
+            out.append(out[-1] + 1 if prev and r["t"] - (prev["t"] + prev["dur"] * 1000) <= SESSION_GAP_MS else 1)
+            prev = r
+        return out
+
+    hist = sorted(rec, key=lambda r: r["t"])
+    hi = index(hist)
+    first = [r["win"] for r, i in zip(hist, hi) if i == 1]
+    wr_from = {}
+    for k in SESSION_FROM:
+        w = [r["win"] for r, i in zip(hist, hi) if i >= k]
+        wr_from[k] = {"n": len(w), "wr": round(100 * sum(w) / len(w), 1) if w else None}
+
+    played = streak = 0
+    if now_list:
+        last = now_list[-1]
+        if time.time() * 1000 - (last["t"] + last["dur"] * 1000) <= SESSION_GAP_MS:
+            played = index(now_list)[-1]
+            for r in reversed(now_list[-played:]):
+                if r["win"]:
+                    break
+                streak += 1
+    start = now_list[-played]["t"] if played else None
+    return {"played": played, "streak": streak, "start": start, "live": bool(live),
+            "first": {"n": len(first), "wr": round(100 * sum(first) / len(first), 1) if first else None}, "wrFrom": wr_from}
+
+
+FRIEND_MIN = 5          # 같이 한 판이 이만큼은 돼야 친구 알림
+
+
+def friends(party: list[dict]) -> dict:
+    """친구 알림 — 파티원 puuid 를 내 기록과 같은 소금으로 해시해 같이 한 판을 찾는다. puuid 는 저장하지 않는다.
+    이름은 내 기록의 mate_name (없으면 클라이언트가 준 이름). 화면에만 보이고 음성은 승률만 말한다."""
+    import hashlib
+    gs = [g for g in games() if g.queue in (420, 440)]
+    salt = _cache["me"].get("salt")
+    if not salt or not party:
+        return {"friends": [], "together": None}
+    names = _cache.get("mate_names", {})
+    out, keys = [], []
+    for p in party:
+        h = hashlib.sha256((salt + p["puuid"]).encode()).hexdigest()[:16]
+        with_ = [g for g in gs if h in g.mates]
+        if len(with_) >= FRIEND_MIN:
+            keys.append(h)
+            out.append({"name": (names.get(h) or p.get("name") or "").split("#")[0], "games": len(with_), "wins": sum(g.win for g in with_)})
+    together = None
+    if len(keys) >= 2:
+        both = [g for g in gs if all(k in g.mates for k in keys)]
+        together = {"games": len(both), "wins": sum(g.win for g in both)}
+    return {"friends": out, "together": together}
+
+
 def _ahead(a, b, lower: bool):
     if a is None or b is None:
         return None

@@ -12,6 +12,7 @@ data/*.db-shm
 data/last_train.json
 data/benchmark.log
 data/benchmark.done
+data/items.json          # 게임 후 피드백이 처음 쓸 때 받아 두는 아이템 목록 / item list fetched on first use
 
 # 다시 학습하며 생기는 것 / produced by retraining
 models/draft.prev.*

@@ -63,6 +63,20 @@ A development key collects about 50,000 games a day.
 
 **Other servers:** the bundled model was trained on Korean games. On another server, the app uses it until you've collected 300,000 games there, and says so at the top of the screen.
 
+### Voice briefing (Korean, optional voice pack)
+
+With the client connected, the app can also help around the game itself:
+
+- **Pick briefing** — on your pick turn it reads the top recommendations; once picks are locked, your expected win rate, power curve and your record against your lane opponent
+- **Today's goal** — one stat to aim for (your role's average one tier up), shown at the top and in the *Goal* tab of *My record*
+- **Loading screen** — all ten players' recent form, streaks and mains in a table
+- **Post-game feedback** — what went well and what to improve, from the timeline of the game you just played
+- **Tilt and friends** — a heads-up after a losing streak or a long session, and your record with friends in your party
+
+Everything is shown on screen. The spoken part is **Korean only** and needs the separate voice pack — `Update.cmd` offers to download it (it goes to `data/voice/`).
+Without the pack, or in the English UI, the voice controls are hidden and everything else still works.
+Turn on **Auto** next to the 🔊 button to have it speak on its own; browsers block sound until you click the page once.
+
 ## How it works
 
 [docs/how-it-works.md](docs/how-it-works.md) (Korean) · the full list of endpoints it calls: [docs/api-usage.md](docs/api-usage.md)
@@ -76,6 +90,7 @@ validated on the most recent 8 days of games it never trained on.
 - Collected games stay in `data/` on your PC.
 - *My record* stays in `data/me.db` on your PC. Other players' names and IDs are removed before saving; teammates are kept only as a salted hash so repeat duos can be recognized.
 - Your API key stays in `.env` on your PC and is only sent to Riot.
+- The loading-screen table reads other players' recent games from your client while the game loads; nothing about them is saved.
 
 ## License
 

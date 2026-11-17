@@ -13,8 +13,8 @@ import random
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -85,6 +85,52 @@ def _page(name: str) -> HTMLResponse:
 @app.get("/")
 def index():
     return _page("index.html")
+
+
+# ---------------------------------------------------------------- 음성 브리핑
+# 클립은 따로 받는 음성 팩이다 (Update.cmd가 받을지 묻는다). data/voice/<언어>/*.ogg — data 폴더는 업데이트해도 남는다.
+# 클립이 없으면 목록이 비어 화면이 음성 버튼을 숨긴다. 다른 화면 기능은 음성 없이도 그대로 돈다.
+VOICE = ROOT / "data" / "voice"
+
+
+@app.get("/api/voice")
+def voice_list():
+    """밴픽 음성 브리핑 — 음성 팩에 든 클립 id. 화면은 있는 클립만 이어 붙인다."""
+    if not VOICE.is_dir():
+        return {}
+    return {d.name: sorted(p.stem for p in d.glob("*.ogg")) for d in VOICE.iterdir() if d.is_dir()}
+
+
+# 자동 음성은 한 번만 — 탭이 둘이거나 다른 브라우저에도 떠 있으면 같은 말을 1초 차이로 겹쳐 읽었다.
+# 같은 말(key)을 20초 안에 먼저 달라고 한 화면만 읽는다. 화면을 오래 켜 둔 채 서버를 다시 켜면 BOOT가 바뀌어 화면이 새로고침한다.
+BOOT = f"{random.getrandbits(48):x}"
+_voice_claims: dict[str, float] = {}
+
+
+class VoiceClaim(BaseModel):
+    key: str
+
+
+@app.post("/api/voice/claim")
+def voice_claim(req: VoiceClaim):
+    import time
+    now = time.time()
+    for k in [k for k, t in _voice_claims.items() if now - t > 20]:
+        del _voice_claims[k]
+    if req.key in _voice_claims:
+        return {"ok": False}
+    _voice_claims[req.key] = now
+    return {"ok": True}
+
+
+@app.get("/voice/{lang}/{clip}.ogg")
+def voice_clip(lang: str, clip: str):
+    if not (lang.isalpha() and clip.replace("_", "").isalnum()):
+        raise HTTPException(404)
+    path = VOICE / lang / f"{clip}.ogg"
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(path, media_type="audio/ogg", headers={"Cache-Control": "max-age=3600"})
 
 
 @app.get("/api/meta")
@@ -196,7 +242,7 @@ def _with_my_record(out: dict, role: str, enemy: dict | None = None, ally: dict 
         for kind, champs, _cond in lines:
             n = sum(n for n, _w in tallies[kind].values())
             w = sum(w for _n, w in tallies[kind].values())
-            rows.append({"kind": kind, "champs": champs, "games": n, "winrate": pct(n, w)})
+            rows.append({"kind": kind, "champs": champs, "games": n, "wins": w, "winrate": pct(n, w)})
         out["myLane"] = {"roleGames": rn, "roleWinrate": pct(rn, rw), "rows": rows}
     return out
 
@@ -241,6 +287,65 @@ def me_curve():
     return mine.curve()
 
 
+@app.get("/api/me/goal")
+def me_goal():
+    """오늘의 목표 — 지표마다 한 티어 위 같은 자리 평균, 이미 넘으면 그 선을 지킨다. 오늘 판마다 달성 여부."""
+    return mine.goal()
+
+
+@app.get("/api/me/session")
+def me_session():
+    """기울어짐 — 지금 이어서 몇 판째 · 연패 · 내 기록에서 n판째부터 승률. 오늘 판은 클라이언트 최근 전적으로 채운다."""
+    return mine.session(_lcu.recent_games())
+
+
+@app.get("/api/me/friends")
+def me_friends():
+    """친구 알림 — 같이 큐를 잡은 파티원 중 같이 한 판이 많은 사람. 밴픽이 시작될 때 화면이 한 번 부른다."""
+    status, session = _lcu.champ_select()
+    return mine.friends(_lcu.party(session if status == "champ_select" else None))
+
+
+@app.get("/api/loading")
+def loading_info():
+    """로딩 화면 — 10명 표와 음성 클립 id (src/model/loading.py). 다른 사람 전적은 클라이언트에서 읽고 저장하지 않는다.
+    같은 판은 한 번만 조회한다 (화면이 다시 불러도 같은 답)."""
+    from src.model import loading
+    gid = _lcu.game_id()
+    if not gid:
+        return {"available": False}
+    if gid not in _loading_cache:
+        out = loading.build(_lcu.loading(), _lcu_state["ally_pos"], _games_of)
+        if not out.get("available"):
+            return out
+        _loading_cache.clear()
+        _loading_cache[gid] = out
+    return _loading_cache[gid]
+
+
+_feedback_cache: dict = {}
+
+
+@app.get("/api/feedback")
+def feedback_info(game: int = 0, lang: str | None = None):
+    """게임 후 피드백 (src/model/feedback_live.py). game을 안 주면 클라이언트 최근 전적의 가장 최근 협곡 판.
+    못 받았으면 available: false — 화면이 잠시 뒤 다시 부른다. 받은 판만 기억한다."""
+    from src.i18n import pick as pick_lang
+    from src.model import feedback_live
+    if not game:
+        recent = [g for g in _lcu.recent_games() if g["queue"] in feedback_live.SR and g["dur"] >= feedback_live.MIN_SEC]
+        if not recent:
+            return {"available": False}
+        game = max(recent, key=lambda g: g["t"])["id"]
+    key = (game, pick_lang(lang))
+    if key not in _feedback_cache:
+        out = feedback_live.build(_lcu, game, _lcu_state.get("my_role", ""), _games_of, lang)
+        if not out.get("available"):
+            return out
+        _feedback_cache[key] = out
+    return _feedback_cache[key]
+
+
 @app.get("/api/me/hexagon")
 def me_hexagon():
     """승패 육각형. 기록이나 기준 표가 없으면 available: false — 화면은 칸을 숨긴다."""
@@ -254,7 +359,8 @@ from src.lcu.session import parse_session  # noqa: E402
 from src.model.positions import POSITIONS, infer_positions  # noqa: E402
 
 _lcu = FileClient(os.environ["LCU_FAKE"]) if os.environ.get("LCU_FAKE") else LeagueClient()
-_lcu_state = {"status": "offline", "session_seq": 0}
+_lcu_state = {"status": "offline", "session_seq": 0, "ally_pos": {}}
+_loading_cache: dict = {}
 
 
 def _games_of(champion: int):
@@ -284,6 +390,10 @@ def _fixed_entry(champion: int) -> dict:
 
 @app.get("/api/lcu")
 def lcu(fixed: str = "", lang: str | None = None):
+    return {**_lcu_status(fixed), "boot": BOOT}
+
+
+def _lcu_status(fixed: str = ""):
     """밴픽 창 상태. 화면이 1초마다 부른다. 읽기만 한다.
 
     session_seq는 새 밴픽이 시작될 때마다 1씩 오른다 — 화면은 이게 바뀌면 판을 비운다.
@@ -295,6 +405,8 @@ def lcu(fixed: str = "", lang: str | None = None):
     _lcu_state["status"] = status
     out = {"status": status, "sessionSeq": _lcu_state["session_seq"]}
     if status != "champ_select":
+        if status == "idle":
+            out["flow"] = _lcu.gameflow()      # 게임이 끝나 로비로 돌아온 때를 화면이 안다 (기울어짐 음성 · 게임 후 피드백)
         return out
 
     draft = parse_session(session)
@@ -319,11 +431,17 @@ def lcu(fixed: str = "", lang: str | None = None):
     rest = [c for c in draft["enemy"] if c not in pinned_enemy]
     for guess in infer_positions(rest, _games_of, taken=tuple(enemy)):
         enemy[guess["position"]] = {**guess, "inferred": True}
+    # 로딩 화면에서 게임이 자리를 안 알려 주면 이걸 쓴다 (챔피언 → 자리)
+    _lcu_state["ally_pos"] = {v["championId"]: pos for pos, v in ally.items() if v.get("championId")}
+    _lcu_state["my_role"] = draft["myRole"] or ""
+    if draft["myRole"] and draft["myPick"]:
+        _lcu_state["ally_pos"][draft["myPick"]] = draft["myRole"]
     return {
         **out,
         "phase": draft["phase"],
         "myRole": draft["myRole"],
         "myPick": draft["myPick"],
+        "myTurn": draft.get("myTurn", False),
         "hover": draft["hover"],
         "ally": ally,
         "enemy": enemy,

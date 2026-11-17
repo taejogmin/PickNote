@@ -158,11 +158,21 @@
   nav.tabs a:focus-visible{outline:2px solid var(--win);outline-offset:2px}
   nav.tabs{flex-wrap:wrap}
   header .tiersel{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font:inherit;font-size:13px}
+  /* 오늘의 목표 */
+  .goalhead{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:6px 0 4px}
+  .goalbadge{background:var(--gold);color:#1a1405;font-weight:700;border-radius:7px;padding:3px 9px;font-size:13px}
+  .goalname{font-size:20px;font-weight:700}.goalname b{color:var(--gold)}
+  .goaldots{display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--dim);margin-top:8px}
+  .gdot{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:700}
+  .gdot.ok{background:var(--win);color:#06121f}.gdot.no{border:1px solid var(--loss);color:var(--loss)}
+  table.goaltbl td.ok{color:var(--win);font-weight:700}table.goaltbl td.no{color:var(--loss)}
+  table.goaltbl tr.pick td{background:rgba(212,180,92,.08)}table.goaltbl tr.pick td:first-child{color:var(--gold);font-weight:700}
+  table.goaltbl .keep{color:var(--dim);font-size:12px}
   /* 탭 — 지금 탭이 아닌 섹션은 숨긴다. data-tab 이 없는 섹션(맨 아래 안내)은 어느 탭에나 */
   main[data-tab] section[data-tab]{display:none}
   main[data-tab="summary"] section[data-tab~="summary"], main[data-tab="trend"] section[data-tab~="trend"],
   main[data-tab="skill"] section[data-tab~="skill"], main[data-tab="champ"] section[data-tab~="champ"],
-  main[data-tab="opp"] section[data-tab~="opp"]{display:block}
+  main[data-tab="opp"] section[data-tab~="opp"], main[data-tab="goal"] section[data-tab~="goal"]{display:block}
   .growtbl td small,.rtable td small{display:block;color:var(--faint);font-size:11px}
   .growtbl td:first-child,.mixtbl td:first-child{color:var(--dim)}
   .mixtbl td{white-space:normal}
@@ -232,7 +242,7 @@
 <header>
   <a class="logo" href="/" title="PickNote"><img src="/static/logo.svg" alt=""><span>Pick<em>Note</em></span></a>
   <h1 class="sub-title" data-en="My record">내 기록</h1>
-  <nav class="tabs" aria-label="보기"><a href="#summary" data-view="summary">요약</a><a href="#trend" data-view="trend">추이</a><a href="#skill" data-view="skill">실력</a><a href="#champ" data-view="champ">챔피언</a><a href="#opp" data-view="opp">상대·팀</a><a href="#recent" data-view="recent">최근 20판</a></nav>
+  <nav class="tabs" aria-label="보기"><a href="#goal" data-view="goal">목표</a><a href="#summary" data-view="summary">요약</a><a href="#trend" data-view="trend">추이</a><a href="#skill" data-view="skill">실력</a><a href="#champ" data-view="champ">챔피언</a><a href="#opp" data-view="opp">상대·팀</a><a href="#recent" data-view="recent">최근 20판</a></nav>
   <select class="tiersel" id="tierSel" aria-label="기준 티어"></select>
   <span class="id" id="rid"></span>
   <a class="back" href="/" data-en="Back to picks">추천 화면으로</a>
@@ -317,6 +327,7 @@ function render(){
       Rows with fewer than ${THIN} games are faded — chance alone easily swings them ±15pp.`)}</div>` : ""}
   </section>`);
 
+  html.push(`<section class="wide" id="goal" data-tab="goal" hidden></section>`);
   html.push(`<section class="wide" id="form" data-tab="summary" hidden></section>`);
 
   // 계정이 둘 이상일 때만 — 계정마다 붙는 상대 수준이 다를 수 있어 따로도 본다
@@ -604,6 +615,67 @@ function renderForm(){
       Mental, snowball and team luck only turn good or bad once the gap is beyond the noise.`)}</div>`}`;
   const sel = box.querySelector("#fmPos");
   if(sel) sel.onchange = e => { fm.pos = e.target.value; renderForm(); };
+}
+
+// ---------------------------------------------------------------- 오늘의 목표
+// 지표마다 한 티어 위 같은 자리 평균(중간값)이 목표 · 이미 넘으면 그 선을 지키는 것이 목표. 음성은 차이가 가장 큰 하나만 말한다
+let GL = null;
+const gl = {pos: ""};
+const GOAL_EXTRA = {cs15d:L("15분 CS 차이", "CS diff at 15"), gold15d:L("15분 골드 차이", "Gold diff at 15"), xp15d:L("15분 경험치 차이", "XP diff at 15")};
+const goalName = k => GOAL_EXTRA[k] ?? TILES.find(t => t.k === k)?.n ?? k;
+function goalFmt(k, v){
+  if(v == null) return "—";
+  if(["kp", "kp15", "dmgShare", "soloShare"].includes(k)) return `${Math.round(v * 100)}%`;
+  if(k === "lane") return `${v.toFixed(1)} : ${(100 - v).toFixed(1)}`;
+  if(["cs15d", "gold15d", "xp15d"].includes(k)) return signed(v, x => k === "cs15d" ? fmtN(x) : fmtK(x));
+  if(["kda", "dmgPerGold", "cs", "vision"].includes(k)) return fmtN(v, 2);
+  if(["kills", "assists", "deaths", "solo"].includes(k)) return fmtN(v, 1);
+  if(k === "ctrl"){ const n = fmtN(v, 1).replace(/\.0$/, ""); return L(`${n}개`, n); }
+  return fmtK(v);
+}
+function renderGoal(){
+  const box = document.getElementById("goal");
+  if(!box || !GL) return;
+  box.hidden = false;
+  if(!GL.available){ box.innerHTML = `<h2>${L("오늘의 목표", "Today's goal")}</h2><div class="locked">${L("한 자리에서 5판 넘게 하면 목표를 세웁니다", "A goal is set once you've played 5+ games in a role")}</div>`; return; }
+  const posList = Object.keys(GL.pos).sort((a, b) => GL.pos[b].games - GL.pos[a].games);
+  if(!gl.pos || !GL.pos[gl.pos]) gl.pos = GL.main;
+  const P = GL.pos[gl.pos], tierName = TIER_NAME[GL.tier] ?? GL.tier, posName = POS_KO[gl.pos] ?? gl.pos;
+  const nowTxt = GL.now ? L(`지금 ${TIER_NAME[GL.now.tier] ?? GL.now.tier} ${DIV_NUM[GL.now.div] ?? ""}`, `Now ${TIER_NAME[GL.now.tier] ?? GL.now.tier} ${DIV_NUM[GL.now.div] ?? ""}`)
+                        : L("티어 기록 없음", "No rank recorded");
+  const pick = P.rows.find(r => r.k === P.pick);
+  const today = GL.today.filter(g => g.pos === gl.pos);
+  const dot = ok => `<span class="gdot ${ok ? "ok" : "no"}">${ok ? "✓" : "✗"}</span>`;
+  const pickHits = today.map(g => g.hits[P.pick]).filter(Boolean);
+  const pickOk = pickHits.filter(h => h.ok).length;
+  const head = pick ? `<div class="goalhead"><span class="goalbadge">${L("오늘의 목표", "Today's goal")}</span>
+      <span class="goalname">${goalName(pick.k)} <b>${goalFmt(pick.k, pick.target)}</b>${pick.mode === "keep" ? L(" 유지", " (keep)") : ""}</span></div>
+    <div class="sub">${L(`최근 ${posName} ${pick.n}판 평균 ${goalFmt(pick.k, pick.mine)} · ${tierName} ${posName} 평균 ${goalFmt(pick.k, pick.base)} — ${pick.n}판 중 ${pick.hits}판만 넘었어요. 음성으로 말하는 목표는 이것 하나입니다.`,
+                         `Your last ${pick.n} ${posName} games average ${goalFmt(pick.k, pick.mine)} · ${tierName} ${posName} average ${goalFmt(pick.k, pick.base)} — only ${pick.hits} of ${pick.n} games beat it. This is the one goal the voice briefing mentions.`)}</div>
+    <div class="goaldots">${pickHits.length ? L(`오늘 ${pickHits.map(h => dot(h.ok)).join("")} ${pickHits.length}판 중 ${pickOk}판 성공`, `Today ${pickHits.map(h => dot(h.ok)).join("")} ${pickOk} of ${pickHits.length} games hit`)
+                                           : L("오늘 아직 판이 없어요", "No games today yet")}</div>` : "";
+  const opt = (v, label, on) => `<option value="${v}"${on ? " selected" : ""}>${esc(label)}</option>`;
+  const locale = L("ko-KR", "en-US");
+  const tdays = today.map((g, i) => `<th title="${new Date(g.t).toLocaleTimeString(locale, {hour:"2-digit", minute:"2-digit"})} ${esc(nameOf(g.champ))} ${g.win ? L("승", "W") : L("패", "L")}">${L(`${i + 1}판`, `G${i + 1}`)}</th>`).join("");
+  const order = [...P.rows].sort((a, b) => (a.mode === b.mode ? a.pct - b.pct : a.mode === "raise" ? -1 : 1));
+  const rows = order.map(r => `<tr class="${r.k === P.pick ? "pick" : ""}"><td>${goalName(r.k)}</td>
+      <td>${goalFmt(r.k, r.target)}${r.mode === "keep" ? ` <span class="keep">${L("유지", "keep")}</span>` : ""}</td>
+      <td>${goalFmt(r.k, r.mine)}</td><td>${r.hits} / ${r.n}</td>
+      ${today.map(g => { const h = g.hits[r.k]; return h ? `<td class="${h.ok ? "ok" : "no"}" title="${goalFmt(r.k, h.v)}">${h.ok ? "✓" : "✗"}</td>` : "<td>—</td>"; }).join("")}</tr>`).join("");
+  const done = today.length ? today.map(g => { const hs = Object.values(g.hits); return hs.filter(h => h.ok).length + " / " + hs.length; }) : [];
+  box.innerHTML = `<h2>${L("오늘의 목표", "Today's goal")}</h2><div class="sub">${L(`${nowTxt} → 한 티어 위 <b>${tierName}</b> 같은 자리 평균을 목표로 · 이미 넘는 지표는 그 선 아래로 떨어지지 않게 유지 · 하루는 새벽 6시에 바뀝니다`,
+                                                                         `${nowTxt} → the goal is the average for your role one tier up (<b>${tierName}</b>) · stats you already beat just need to stay above that line · the day resets at 6 a.m.`)}</div>
+    <div class="hexbar"><select id="goalPos" aria-label="${L("자리", "Role")}">${posList.map(p => opt(p, L(`${POS_KO[p] ?? p} ${GL.pos[p].games}판`, `${POS_KO[p] ?? p} ${GL.pos[p].games} games`), p === gl.pos)).join("")}</select></div>
+    ${head}
+    <div class="tw" style="margin-top:14px"><table class="goaltbl">
+      <tr><th>${L("지표", "Stat")}</th><th>${L(`목표 (${tierName} 평균)`, `Goal (${tierName} average)`)}</th><th>${L("최근 평균", "Recent average")}</th><th>${L("최근 넘은 판", "Recent games over")}</th>${tdays}</tr>
+      ${rows}
+      ${today.length ? `<tr><td>${L("달성한 지표", "Goals hit")}</td><td></td><td></td><td></td>${done.map(d => `<td>${d}</td>`).join("")}</tr>` : ""}</table></div>
+    <div class="explain">${L(`위에서부터 올려야 할 지표(차이가 큰 순), 그 아래가 지금처럼 지키면 되는 지표입니다. <b>최근 넘은 판</b>은 이 자리 최근 ${P.games}판 중 목표를 넘은 판 수입니다.
+      오늘 판은 <code>4_MyRecord.cmd</code>로 받은 뒤에 보입니다 — 마지막으로 받은 판 ${new Date(GL.latest).toLocaleString(locale)}.`,
+      `From the top: stats to raise (biggest gap first), then stats to keep where they are. <b>Recent games over</b> counts how many of your last ${P.games} games in this role beat the goal.
+      Today's games appear after you fetch them with <code>4_MyRecord.cmd</code> — latest game fetched ${new Date(GL.latest).toLocaleString(locale)}.`)}</div>`;
+  box.querySelector("#goalPos").onchange = e => { gl.pos = e.target.value; renderGoal(); };
 }
 
 // ---------------------------------------------------------------- 티어 그래프
@@ -1064,11 +1136,11 @@ function renderRecent(){
   });
 }
 
-/** 탭 여섯 — 무엇이 궁금할 때 보는가로 나눴다.
-    요약 · 추이 · 실력 · 챔피언 · 상대·팀 은 한 번 그린 섹션을 숨겼다 보였다만 하고, 최근 20판은 화면을 새로 그린다.
+/** 탭 일곱 — 무엇이 궁금할 때 보는가로 나눴다.
+    목표 · 요약 · 추이 · 실력 · 챔피언 · 상대·팀 은 한 번 그린 섹션을 숨겼다 보였다만 하고, 최근 20판은 화면을 새로 그린다.
     주소 #skill 처럼 탭을 고르고, 마지막 탭을 기억한다. 예전 주소 #all 은 요약, #win&pos=… 같은 육각형 주소는 실력. */
-const TABS = ["summary", "trend", "skill", "champ", "opp", "recent"];
-const TAB_LABEL = {summary: () => L("요약", "Summary"), trend: () => L("추이", "Trend"), skill: () => L("실력", "Skill"),
+const TABS = ["goal", "summary", "trend", "skill", "champ", "opp", "recent"];
+const TAB_LABEL = {goal: () => L("목표", "Goal"), summary: () => L("요약", "Summary"), trend: () => L("추이", "Trend"), skill: () => L("실력", "Skill"),
                    champ: () => L("챔피언", "Champions"), opp: () => L("상대·팀", "Opponents & team"), recent: () => L("최근 20판", "Last 20 games")};
 function currentTab(){
   const h = location.hash.slice(1), first = h.split("&")[0];
@@ -1086,7 +1158,7 @@ function show(){
   document.querySelectorAll("nav.tabs a").forEach(a => { a.textContent = TAB_LABEL[a.dataset.view](); a.setAttribute("aria-current", a.dataset.view === tab ? "page" : "false"); });
   const main = document.getElementById("main");
   if(tab === "recent"){ drawn = false; main.removeAttribute("data-tab"); renderRecent(); window.scrollTo(0, 0); return; }
-  if(!drawn){ render(); renderTier(); renderForm(); renderHex(); renderCurve(); drawn = true; }
+  if(!drawn){ render(); renderGoal(); renderTier(); renderForm(); renderHex(); renderCurve(); drawn = true; }
   main.dataset.tab = tab;
   window.scrollTo(0, 0);
 }
@@ -1297,6 +1369,7 @@ function renderHex(){
   }
   initTierSel();
   show();
+  fetch("/api/me/goal").then(r => r.json()).then(d => { GL = d; renderGoal(); }).catch(e => console.error(e));
   fetch("/api/me/tier").then(r => r.json()).then(d => { TG = d; renderTier(); }).catch(() => {});
   fetch("/api/me/form").then(r => r.json()).then(d => { FM = d; renderForm(); if(isRecent()) renderRecent(); }).catch(e => console.error(e));
   fetch("/api/me/curve").then(r => r.json()).then(d => { CV = d; renderCurve(); }).catch(e => console.error(e));

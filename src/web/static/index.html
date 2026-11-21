@@ -296,6 +296,8 @@
   /* 음성 브리핑 */
   .voice{display:flex;align-items:center;gap:6px}
   .voice button[aria-pressed=true]{color:var(--gold);border-color:#5a4a2a}
+  .voicesel{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:3px 6px;font:inherit;font-size:12px}
+  .voicevol{width:70px;accent-color:var(--gold)}
   .voicelock{color:var(--gold);font-size:12px;white-space:nowrap;cursor:pointer}
   .voicelock.flash{animation:vlflash .5s 4 alternate}
   @keyframes vlflash{to{opacity:.25}}
@@ -332,6 +334,8 @@
            data-en-title="Reads out on its own on your pick turn and when picks are done (without the client, whenever the content changes)"><input type="checkbox" id="voiceauto"> <span data-en="Auto">자동</span></label>
     <span class="voicelock" id="voicelock" hidden title="브라우저는 화면을 한 번 누르기 전에는 소리를 막습니다"
           data-en-title="Browsers block sound until you click the page once" data-en="🔇 Click the page once">🔇 화면을 한 번 눌러 주세요</span>
+    <select id="voicesel" class="voicesel" title="목소리" data-en-title="Voice" aria-label="Voice" hidden></select>
+    <input type="range" id="voicevol" class="voicevol" min="0" max="100" step="5" title="음량" data-en-title="Volume" aria-label="Volume">
   </div>
   <!-- 내 경기 기록이 있을 때만 보인다. 새 탭 — 밴픽판을 잃지 않게 -->
   <a class="ghost" id="openme" href="/me" target="_blank" hidden data-en="My stats">내 기록</a>
@@ -1630,12 +1634,31 @@ function voiceFriend(F){
     }); }).finally(() => { voice.keep = null; });
   }, 1500);
 }
+/* 목소리 고르기 · 음량 — 음성 팩 폴더 이름이 목소리 id: ko · en (같은 언어에 목소리가 더 생기면 ko_b 처럼). 앞부분이 언어.
+   고른 목소리와 음량은 이 브라우저가 기억한다 */
+const VOICE_PICK_KEY = "picknote.voicePick.v1";
+const VOICE_NAMES = {ko: ["한국어", "Korean"], en: ["English", "English"]};
+function voicePick(patch){
+  let s = {};
+  try{ s = JSON.parse(localStorage.getItem(VOICE_PICK_KEY)) || {}; }catch{}
+  if(patch){ s = {...s, ...patch}; try{ localStorage.setItem(VOICE_PICK_KEY, JSON.stringify(s)); }catch{} }
+  return s;
+}
 async function voiceRefresh(){
-  try{ voice.have = new Set((await fetch("/api/voice").then(r => r.json()))[voice.lang] ?? []); }catch{}
+  let lists = {};
+  try{ lists = await fetch("/api/voice").then(r => r.json()); }catch{ return; }
+  voice.voices = Object.keys(lists).filter(k => k.split("_")[0] === voice.lang && lists[k].length).sort();
+  const want = voicePick().voice;
+  voice.id = voice.voices.includes(want) ? want : (voice.voices.find(k => k !== voice.lang) ?? voice.voices[0] ?? voice.lang);
+  voice.have = new Set(lists[voice.id] ?? []);
+}
+function voiceVolume(){
+  const v = voicePick().vol;
+  return Number.isFinite(v) ? v : 100;
 }
 async function voiceClip(id){
   if(!voice.buf.has(id)){
-    voice.buf.set(id, fetch(`/voice/${voice.lang}/${id}.ogg`).then(r => r.arrayBuffer())
+    voice.buf.set(id, fetch(`/voice/${voice.id}/${id}.ogg`).then(r => r.arrayBuffer())
       .then(b => voice.ctx.decodeAudioData(b)).catch(() => null));
   }
   return voice.buf.get(id);
@@ -1659,6 +1682,14 @@ function voiceUnlock(){
     const p = voice.pending; voice.pending = null;
     if(p && Date.now() - p.at < 30000 && !voice.playing) voiceSpeak(p.ids, true);
   }).catch(() => {});
+}
+function voiceGain(){
+  if(!voice.gain || voice.gain.context !== voice.ctx){
+    voice.gain = voice.ctx.createGain();
+    voice.gain.connect(voice.ctx.destination);
+  }
+  voice.gain.gain.value = voiceVolume() / 100;
+  return voice.gain;
 }
 function voiceCtx(){
   if(voice.ctx) return voice.ctx;
@@ -1700,7 +1731,7 @@ async function voiceSpeak(ids, manual){
     const b = bufs[i];
     if(!b) return;
     const src = voice.ctx.createBufferSource();
-    src.buffer = b; src.connect(voice.ctx.destination); src.start(t);
+    src.buffer = b; src.connect(voiceGain()); src.start(t);
     mine.push(src);
     t += b.duration + VOICE_GAP;
   });
@@ -1746,6 +1777,24 @@ async function voiceInit(){
     if(voice.autoPref) voiceCtx();
     voiceLockShow();
   });
+  const sel = document.getElementById("voicesel"), vol = document.getElementById("voicevol");
+  sel.innerHTML = voice.voices.map(k => `<option value="${k}"${k === voice.id ? " selected" : ""}>${L(...(VOICE_NAMES[k] ?? [k, k]))}</option>`).join("");
+  sel.hidden = voice.voices.length < 2;
+  sel.addEventListener("change", async e => {
+    voicePick({voice: e.target.value});
+    voice.buf.clear(); voice.last = "";
+    await voiceRefresh();
+    voiceSpeak(["pg_more"].filter(id => voice.have.has(id)), true);     // 바꾼 목소리를 바로 들려준다
+  });
+  const volTitle = v => L(`음량 ${v}%`, `Volume ${v}%`);
+  vol.value = voiceVolume();
+  vol.title = volTitle(vol.value);
+  vol.addEventListener("input", e => {
+    voicePick({vol: Number(e.target.value)});
+    vol.title = volTitle(e.target.value);
+    if(voice.gain) voice.gain.gain.value = Number(e.target.value) / 100;
+  });
+  vol.addEventListener("change", () => { if(!voice.playing) voiceSpeak(["pg_more"].filter(id => voice.have.has(id)), true); });
   if(voice.autoPref) voiceCtx();                // 열자마자 — 처음 누르는 순간 바로 풀리게
   for(const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, voiceUnlock, true);
   document.getElementById("voiceplay").addEventListener("click", async () => {

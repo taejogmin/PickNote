@@ -125,7 +125,7 @@ def voice_claim(req: VoiceClaim):
 
 @app.get("/voice/{lang}/{clip}.ogg")
 def voice_clip(lang: str, clip: str):
-    if not (lang.isalpha() and clip.replace("_", "").isalnum()):
+    if not (lang.replace("_", "").isalnum() and clip.replace("_", "").isalnum()):
         raise HTTPException(404)
     path = VOICE / lang / f"{clip}.ogg"
     if not path.is_file():

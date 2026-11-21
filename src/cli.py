@@ -470,10 +470,11 @@ def pull_official_benchmark() -> None:
 
 # ---------------------------------------------------------------- 음성 팩
 # 음성 클립은 저장소에 넣지 않고 릴리스에 voice-<언어>.zip 으로 따로 올린다 (기본 PickNote를 가볍게).
-# 받은 클립은 data/voice/<언어>/ 에 풀고, 어느 파일을 받았는지 <언어>.pack 에 적어 둔다.
+# zip 안의 폴더 하나가 목소리 하나다 (ko · en — 나중에 같은 언어 목소리를 더 넣으면 ko_b 처럼). data/voice/<목소리>/ 에 풀고, 어느 파일을 받았는지 <언어>.pack 에 적어 둔다.
+# 새 팩을 받으면 그 언어의 예전 목소리 폴더(0.3.0 의 ko 등)는 지운다.
 # 안 받겠다고 하면 <언어>.skip 을 남겨 업데이트 때 다시 묻지 않는다 (Setup · Settings 에서는 다시 묻는다).
 VOICE_DIR = ROOT / "data" / "voice"
-VOICE_LANGS = ("ko",)                        # 지금은 한국어 음성만 있다
+VOICE_LANGS = ("ko", "en")
 
 
 def voice_asset(lang: str) -> dict | None:
@@ -494,7 +495,7 @@ def pull_voice_pack(ask_first: bool) -> None:
     lang = default_lang()
     if lang not in VOICE_LANGS:
         return
-    folder, mark, skip = VOICE_DIR / lang, VOICE_DIR / f"{lang}.pack", VOICE_DIR / f"{lang}.skip"
+    mark, skip = VOICE_DIR / f"{lang}.pack", VOICE_DIR / f"{lang}.skip"
     have = mark.read_text(encoding="utf-8").strip() if mark.exists() else ""
     if not have and skip.exists() and not ask_first:
         return
@@ -513,7 +514,8 @@ def pull_voice_pack(ask_first: bool) -> None:
         size = asset.get("size", 0) / 1_000_000
         if not ask(L(f"\n  음성 브리핑 팩(한국어, {size:.0f}MB)을 받을까요?\n"
                      "  밴픽 추천 · 오늘의 목표 · 로딩 화면 · 게임 후 피드백을 소리로 알려 줍니다.",
-                     f"\n  Download the voice briefing pack (Korean only, {size:.0f} MB)?")):
+                     f"\n  Download the voice briefing pack (English, {size:.0f} MB)?\n"
+                     "  It reads pick advice, today's goal, the loading screen and post-game feedback out loud.")):
             VOICE_DIR.mkdir(parents=True, exist_ok=True)
             skip.write_text("no", encoding="utf-8")
             print(L("  건너뜁니다. 나중에 받으려면 Settings.cmd", "  Skipped. To get it later, run Settings.cmd"))
@@ -526,21 +528,34 @@ def pull_voice_pack(ask_first: bool) -> None:
     except (requests.RequestException, zipfile.BadZipFile):
         print(L("  받지 못했습니다. 다음 업데이트 때 다시 해 보세요.", "  Download failed. Try again on the next update."))
         return
-    new = folder.with_name(f"{lang}.new")
+    new = VOICE_DIR / f"{lang}.new"
     shutil.rmtree(new, ignore_errors=True)
-    new.mkdir(parents=True)
-    count = 0
-    for n in z.namelist():                   # ogg 파일 이름만 꺼낸다 — zip 안 경로는 무시해서 엉뚱한 곳에 풀리지 않게
-        name = Path(n).name
-        if name.lower().endswith(".ogg") and name[:-4].replace("_", "").isalnum():
-            (new / name).write_bytes(z.read(n))
+    count, voices = 0, set()
+    for n in z.namelist():                   # "<목소리>/<클립>.ogg" 만 꺼낸다 — 이름을 확인해서 엉뚱한 곳에 풀리지 않게
+        parts = n.replace("\\", "/").strip("/").split("/")
+        if len(parts) != 2:
+            continue
+        voice, name = parts
+        ok_voice = (voice == lang or voice.startswith(lang + "_")) and voice.replace("_", "").isalnum()
+        if ok_voice and name.lower().endswith(".ogg") and name[:-4].replace("_", "").isalnum():
+            (new / voice).mkdir(parents=True, exist_ok=True)
+            (new / voice / name).write_bytes(z.read(n))
             count += 1
-    shutil.rmtree(folder, ignore_errors=True)
-    new.rename(folder)
+            voices.add(voice)
+    if not count:
+        shutil.rmtree(new, ignore_errors=True)
+        print(L("  음성 팩이 비어 있습니다. 건너뜁니다.", "  The voice pack is empty. Skipping."))
+        return
+    for old in VOICE_DIR.iterdir():          # 이 언어의 예전 목소리는 내린다
+        if old.is_dir() and (old.name == lang or old.name.startswith(lang + "_")):
+            shutil.rmtree(old, ignore_errors=True)
+    for v in sorted(voices):
+        (new / v).rename(VOICE_DIR / v)
+    shutil.rmtree(new, ignore_errors=True)
     mark.write_text(tag, encoding="utf-8")
     skip.unlink(missing_ok=True)
-    print(L(f"  음성 팩을 받았습니다 — 클립 {count:,}개. 화면을 새로고침하면 🔊 브리핑 버튼이 생깁니다.",
-            f"  Voice pack installed — {count:,} clips. Refresh the app to see the 🔊 button."))
+    print(L(f"  음성 팩을 받았습니다 — 목소리 {len(voices)}가지 · 클립 {count:,}개. 화면을 새로고침하면 🔊 브리핑 버튼이 생깁니다.",
+            f"  Voice pack installed — {len(voices)} voice(s), {count:,} clips. Refresh the app to see the 🔊 button."))
 
 
 def model_meta() -> dict:

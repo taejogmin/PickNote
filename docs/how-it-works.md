@@ -12,7 +12,7 @@ PickNote가 무엇을 모으고, 무엇을 배우고, 어떻게 검증하고, �
 ```
 league/v4/entries/RANKED_SOLO_5x5/{tier}/{division}   ← 티어를 아는 "씨앗" 플레이어
         ↓ puuid
-match/v5/matches/by-puuid/{puuid}/ids?queue=420       ← 그 사람의 최근 30일 매치 ID
+match/v5/matches/by-puuid/{puuid}/ids?queue=420       ← 그 사람의 매치 ID (가장 새 패치가 시작된 뒤 것만)
         ↓ matchId
 match/v5/matches/{matchId}                            ← 경기 상세 (열 명의 챔피언 · 포지션 · 승패)
 ```

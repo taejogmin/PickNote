@@ -119,6 +119,57 @@ def collect_apex_seeds(client: RiotClient, conn) -> int:
     return added
 
 
+# ---------------------------------------------------------------- 새 패치 먼저 (2026-11-22)
+# 씨앗의 최근 30일 경기를 다 긁으면 대기열이 지난 패치 경기로 차서 새 패치가 늦게 쌓인다.
+# 그래서 가장 새 패치가 시작된 뒤의 경기만 긁고, 받을 때도 그 경기부터 받는다.
+# 매치 번호(KR_ · NA1_ 뒤 숫자)는 시간 순으로 커지므로 "첫 경기 번호 이상"이 곧 새 패치 경기다.
+# 다음 패치 경기가 하나라도 저장되면 기준이 저절로 그 패치로 넘어간다.
+
+_patch_start: tuple[float, tuple[str, int, int] | None] = (0.0, None)
+
+
+def match_no(match_id: str) -> int:
+    return int(match_id.split("_", 1)[1])
+
+
+def current_patch_start(conn) -> tuple[str, int, int] | None:
+    """가장 새 패치의 첫 경기 → (패치, 시작 시각 ms, 매치 번호). 30분마다 다시 찾는다.
+    patch 에는 색인이 없어서 created_ms 색인으로 패치가 바뀌는 지점을 이분 탐색한다."""
+    global _patch_start
+    at, cached = _patch_start
+    if cached and time.time() - at < 1800:
+        return cached
+    newest = conn.execute("SELECT patch, created_ms FROM match ORDER BY created_ms DESC LIMIT 1").fetchone()
+    if not newest:
+        return None
+    patch = newest[0]
+
+    def patch_at(ms):
+        r = conn.execute("SELECT patch FROM match WHERE created_ms <= ? ORDER BY created_ms DESC LIMIT 1", (ms,)).fetchone()
+        return r[0] if r else None
+
+    lo, hi = newest[1] - 40 * 86400 * 1000, newest[1]          # patch_at(hi) == patch
+    while hi - lo > 1000:
+        mid = (lo + hi) // 2
+        if patch_at(mid) == patch:
+            hi = mid
+        else:
+            lo = mid
+    first = conn.execute("SELECT match_id, created_ms FROM match WHERE created_ms >= ? AND patch = ? "
+                         "ORDER BY created_ms LIMIT 1", (hi, patch)).fetchone()
+    cached = (patch, first[1], match_no(first[0])) if first else None
+    _patch_start = (time.time(), cached)
+    return cached
+
+
+def new_patch_sql(conn) -> tuple[str, list]:
+    """대기열에서 새 패치 경기만 고르는 조건 (기준을 모르면 전부)."""
+    cur = current_patch_start(conn)
+    if not cur:
+        return "1", []
+    return "CAST(substr(match_id, instr(match_id, '_') + 1) AS INTEGER) >= ?", [cur[2]]
+
+
 # ---------------------------------------------------------------- 2단계: 매치 ID
 
 def scrape_ids(client: RiotClient, conn, limit: int, days: int, per_player: int,
@@ -129,6 +180,9 @@ def scrape_ids(client: RiotClient, conn, limit: int, days: int, per_player: int,
     1건당 새 매치 30~70개 정도가 남는다. 그래서 매치 상세보다 훨씬 값싸다.
     """
     start_time = int(time.time()) - days * 86400
+    cur = current_patch_start(conn)
+    if cur:                                   # 새 패치가 시작된 뒤 경기만
+        start_time = max(start_time, cur[1] // 1000)
     # 무작위 순서로 꺼낸다. 넣은 순서(아이언→브론즈→…)대로 쓰면
     # 아이언을 다 훑기 전에는 골드·플래 경기가 한 건도 안 쌓인다.
     where, args = _in(tiers)
@@ -273,11 +327,13 @@ def fetch_matches(client: RiotClient, conn, limit: int, tiers: list[str] = TIERS
     """대기 중인 매치의 상세를 받는다. 요청 1건 = 매치 1건, 여기가 병목이다. 4판에 1판은 타임라인도 (요청 1건 더)."""
     # 여기도 무작위. 대기열은 티어별로 뭉쳐서 들어오므로 앞에서부터 꺼내면
     # 한 티어만 계속 받게 된다. 대기열은 수천 건 규모라 정렬 비용은 무시할 만하다.
+    # 새 패치 경기만 받는다 — 지난 패치 경기는 대기열에 남겨 둔다.
     where, args = _in(tiers)
+    fresh, fargs = new_patch_sql(conn)
     pending = conn.execute(
-        f"SELECT match_id, tier FROM match_queue WHERE status = 0 AND {where} "
+        f"SELECT match_id, tier FROM match_queue WHERE status = 0 AND {where} AND {fresh} "
         "ORDER BY RANDOM() LIMIT ?",
-        (*args, limit),
+        (*args, *fargs, limit),
     ).fetchall()
 
     saved = dropped = 0
@@ -348,8 +404,9 @@ def _run_once(client: RiotClient, conn, args, started: float, total_saved: int) 
     """수집 한 바퀴. 대기열이 마르면 채우고, 아니면 매치 상세를 받는다."""
     tiers = parse_tiers(args.tiers)
     where, targs = _in(tiers)
+    fresh, fargs = new_patch_sql(conn)
     pending = conn.execute(
-        f"SELECT COUNT(*) FROM match_queue WHERE status = 0 AND {where}", targs
+        f"SELECT COUNT(*) FROM match_queue WHERE status = 0 AND {where} AND {fresh}", (*targs, *fargs)
     ).fetchone()[0]
 
     if pending < args.low_water:
@@ -362,7 +419,9 @@ def _run_once(client: RiotClient, conn, args, started: float, total_saved: int) 
                 collect_apex_seeds(client, conn)
             else:
                 collect_seeds(client, conn, args.per_division, args.max_page)
-        print(L(f"\n대기열 {pending}건 — 매치 ID를 더 모읍니다", f"\nQueue at {pending} — gathering more match IDs"), flush=True)
+        cur = current_patch_start(conn)
+        print(L(f"\n대기열 {pending}건 — 매치 ID를 더 모읍니다", f"\nQueue at {pending} — gathering more match IDs")
+              + (L(f" ({cur[0]} 패치 경기만)", f" (patch {cur[0]} games only)") if cur else ""), flush=True)
         found = scrape_ids(client, conn, limit=60, days=args.days, per_player=100, tiers=tiers)
         print(L(f"  새 매치 {found}건 발견", f"  Found {found} new matches"), flush=True)
         return total_saved
